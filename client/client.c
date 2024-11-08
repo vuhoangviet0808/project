@@ -12,6 +12,7 @@ int main() {
     int sock;
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
+    int isLoggedIn = 0;
 
     // Tạo socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -33,10 +34,48 @@ int main() {
 
     printf("Connected to server.\n");
 
-    while (1) {
+    // Login or register
+    while (!isLoggedIn) {
         printf("Enter command (register/login): ");
         fgets(buffer, BUFFER_SIZE, stdin);
         buffer[strcspn(buffer, "\n")] = 0; // Xóa ký tự xuống dòng
+
+        if (send(sock, buffer, strlen(buffer), 0) < 0) {
+            perror("Send failed");
+            close(sock);
+            exit(EXIT_FAILURE);
+        }
+
+        memset(buffer, 0, BUFFER_SIZE);
+        if (recv(sock, buffer, BUFFER_SIZE, 0) < 0) {
+            perror("Receive failed");
+            close(sock);
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Server: %s\n", buffer);
+
+        // Check for successful login or registration response
+        if (strcmp(buffer, "Login successful") == 0 || strcmp(buffer, "Registration successful") == 0) {
+            isLoggedIn = 1;
+        } else {
+            printf("Login or registration failed. Try again.\n");
+        }
+    }
+
+    printf("Entering chat room...\n");
+
+    // Chat mode
+    while (1) {
+        printf("You: ");
+        fgets(buffer, BUFFER_SIZE, stdin);
+        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character
+
+        // Option to exit chat
+        if (strcmp(buffer, "exit") == 0) {
+            printf("Exiting chat room...\n");
+            break;
+        }
 
         if (send(sock, buffer, strlen(buffer), 0) < 0) {
             perror("Send failed");

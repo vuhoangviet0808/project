@@ -12,33 +12,95 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 #define BASE_DIR "user_data"
+#define ID_FILE "user_data/next_id.txt"
+#define MAX_CLIENTS 1000
 
-// Hàm tạo thư mục
-void create_user_directory(const char *username, const char *password) {
-    char user_dir[BUFFER_SIZE];
-    snprintf(user_dir, sizeof(user_dir), "%s/%s", BASE_DIR, username);
-    
-    if (mkdir(user_dir, 0700) == 0) {
-        char password_file[BUFFER_SIZE];
-        snprintf(password_file, sizeof(password_file), "%s/password.txt", user_dir);
-        
-        FILE *file = fopen(password_file, "w");
-        if (file) {
-            fprintf(file, "%s", password);
-            fclose(file);
-        }
+typedef struct {
+    int socket;
+    int id;
+    int is_online;
+    char username[BUFFER_SIZE];
+} Client;
+
+Client clients[MAX_CLIENTS];  
+pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+int next_id = 0;  
+
+void init_clients() {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        clients[i].socket = -1;  
+        clients[i].is_online = 0;
     }
 }
 
-// Hàm xử lý client
+void load_next_id() {
+    FILE *file = fopen(ID_FILE, "r");
+    if (file) {
+        fscanf(file, "%d", &next_id);
+        fclose(file);
+    } else {
+        next_id = 0;  
+    }
+}
+
+void save_next_id() {
+    FILE *file = fopen(ID_FILE, "w");
+    if (file) {
+        fprintf(file, "%d", next_id);
+        fclose(file);
+    }
+}
+
+int create_user_directory(const char *username, const char *password) {
+    char user_dir[BUFFER_SIZE];
+    snprintf(user_dir, sizeof(user_dir), "%s/%s", BASE_DIR, username);
+
+    if (mkdir(user_dir, 0700) == 0) {
+        int user_id = next_id++;
+        save_next_id();  
+
+        char info_file[BUFFER_SIZE];
+        snprintf(info_file, sizeof(info_file), "%s/info.txt", user_dir);
+
+        FILE *file = fopen(info_file, "w");
+        if (file) {
+            fprintf(file, "ID:%d\nPASSWORD:%s", user_id, password);
+            fclose(file);
+        }
+        return user_id;
+    }
+    return -1;
+}
+
+int add_client(int client_sock, int id, const char *username) {
+    pthread_mutex_lock(&clients_mutex);
+    if (id >= 0 && id < MAX_CLIENTS) {
+        clients[id].socket = client_sock;
+        clients[id].id = id;
+        clients[id].is_online = 1;
+        strncpy(clients[id].username, username, BUFFER_SIZE);
+    }
+    pthread_mutex_unlock(&clients_mutex);
+    return id;
+}
+
+void remove_client(int id) {
+    pthread_mutex_lock(&clients_mutex);
+    if (id >= 0 && id < MAX_CLIENTS) {
+        clients[id].socket = -1;
+        clients[id].is_online = 0;
+    }
+    pthread_mutex_unlock(&clients_mutex);
+}
+
 void *client_handler(void *socket_desc) {
     int client_sock = *(int *)socket_desc;
     char buffer[BUFFER_SIZE];
-    
+    int user_id = -1;  
+
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
         
-        // Nhận dữ liệu từ client
         int read_size = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (read_size <= 0) break;
 
@@ -52,23 +114,34 @@ void *client_handler(void *socket_desc) {
             if (access(user_dir, F_OK) != -1) {
                 send(client_sock, "Account already exists.\n", strlen("Account already exists.\n"), 0);
             } else {
-                create_user_directory(username, password);
-                send(client_sock, "Registration successful.\n", strlen("Registration successful.\n"), 0);
+                int new_id = create_user_directory(username, password);
+                if (new_id != -1) {
+                    char response[BUFFER_SIZE];
+                    snprintf(response, BUFFER_SIZE, "Registration successful");
+                    send(client_sock, response, strlen(response), 0);
+                } else {
+                    send(client_sock, "Registration failed.\n", strlen("Registration failed.\n"), 0);
+                }
             }
         } else if (strcmp(command, "login") == 0) {
-            char password_file[BUFFER_SIZE];
-            snprintf(password_file, sizeof(password_file), "%s/%s/password.txt", BASE_DIR, username);
+            char info_file[BUFFER_SIZE];
+            snprintf(info_file, sizeof(info_file), "%s/%s/info.txt", BASE_DIR, username);
             
-            if (access(password_file, F_OK) == -1) {
+            if (access(info_file, F_OK) == -1) {
                 send(client_sock, "Account does not exist.\n", strlen("Account does not exist.\n"), 0);
             } else {
-                FILE *file = fopen(password_file, "r");
+                FILE *file = fopen(info_file, "r");
+                int stored_id;
                 char stored_password[BUFFER_SIZE];
-                fscanf(file, "%s", stored_password);
+                fscanf(file, "ID:%d\nPASSWORD:%s", &stored_id, stored_password);
                 fclose(file);
 
                 if (strcmp(stored_password, password) == 0) {
-                    send(client_sock, "Login successful.\n", strlen("Login successful.\n"), 0);
+                    user_id = stored_id;
+                    add_client(client_sock, user_id, username);  // Thêm client vào mảng
+                    char response[BUFFER_SIZE];
+                    snprintf(response, BUFFER_SIZE, "Login successful");
+                    send(client_sock, response, strlen(response), 0);
                 } else {
                     send(client_sock, "Incorrect password.\n", strlen("Incorrect password.\n"), 0);
                 }
@@ -78,6 +151,8 @@ void *client_handler(void *socket_desc) {
         }
     }
 
+    printf("Client disconnected: ID %d\n", user_id);
+    remove_client(user_id);  // Xóa client khỏi mảng khi ngắt kết nối
     close(client_sock);
     free(socket_desc);
     return NULL;
@@ -88,10 +163,10 @@ int main() {
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_size;
 
-    // Tạo thư mục gốc để lưu thông tin người dùng
     mkdir(BASE_DIR, 0700);
+    load_next_id();
+    init_clients();
 
-    // Tạo socket server
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock < 0) {
         perror("Socket creation failed");
@@ -102,14 +177,12 @@ int main() {
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(PORT);
 
-    // Gắn socket với địa chỉ và cổng
     if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
         close(server_sock);
         exit(EXIT_FAILURE);
     }
 
-    // Lắng nghe kết nối
     if (listen(server_sock, 5) < 0) {
         perror("Listen failed");
         close(server_sock);
