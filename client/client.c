@@ -99,6 +99,8 @@ int main() {
             }
         }
 
+        
+
         // Check for message from server
         if (FD_ISSET(sock, &read_fds)) {
             memset(buffer, 0, BUFFER_SIZE);
