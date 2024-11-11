@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <sys/select.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
@@ -13,6 +14,8 @@ int main() {
     struct sockaddr_in server_addr;
     char buffer[BUFFER_SIZE];
     int isLoggedIn = 0;
+    fd_set read_fds;
+    int max_sd;
 
     // Tạo socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -65,30 +68,47 @@ int main() {
 
     printf("Entering chat room...\n");
 
-    // Chat mode
+    // Chat mode with multiplexing
     while (1) {
-        printf("You: ");
-        fgets(buffer, BUFFER_SIZE, stdin);
-        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character
+        FD_ZERO(&read_fds);
+        FD_SET(STDIN_FILENO, &read_fds);
+        FD_SET(sock, &read_fds);
+        max_sd = sock;
 
-        // Option to exit chat
-        if (strcmp(buffer, "exit") == 0) {
-            printf("Exiting chat room...\n");
+        int activity = select(max_sd + 1, &read_fds, NULL, NULL, NULL);
+        if (activity < 0) {
+            perror("Select error");
             break;
         }
 
-        if (send(sock, buffer, strlen(buffer), 0) < 0) {
-            perror("Send failed");
-            break;
+        // Check for input from stdin
+        if (FD_ISSET(STDIN_FILENO, &read_fds)) {
+            printf("You: ");
+            fgets(buffer, BUFFER_SIZE, stdin);
+            buffer[strcspn(buffer, "\n")] = 0; // Remove newline character
+
+            // Option to exit chat
+            if (strcmp(buffer, "exit") == 0) {
+                printf("Exiting chat room...\n");
+                break;
+            }
+
+            if (send(sock, buffer, strlen(buffer), 0) < 0) {
+                perror("Send failed");
+                break;
+            }
         }
 
-        memset(buffer, 0, BUFFER_SIZE);
-        if (recv(sock, buffer, BUFFER_SIZE, 0) < 0) {
-            perror("Receive failed");
-            break;
-        }
+        // Check for message from server
+        if (FD_ISSET(sock, &read_fds)) {
+            memset(buffer, 0, BUFFER_SIZE);
+            if (recv(sock, buffer, BUFFER_SIZE, 0) < 0) {
+                perror("Receive failed");
+                break;
+            }
 
-        printf("Server: %s\n", buffer);
+            printf("Server: %s\n", buffer);
+        }
     }
 
     close(sock);
