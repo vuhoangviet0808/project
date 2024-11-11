@@ -1,4 +1,3 @@
-#include <string.h>
 #ifndef FRIEND_H
 #define FRIEND_H
 
@@ -19,7 +18,6 @@ typedef struct {
 listfr init_list(){
     listfr x;
     x.num = 0;
-    memset()
 }
 
 
