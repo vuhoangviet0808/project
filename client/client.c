@@ -17,7 +17,7 @@ int main() {
     fd_set read_fds;
     int max_sd;
 
-    // Tạo socket
+    // Create socket
     sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("Socket creation failed");
@@ -28,7 +28,7 @@ int main() {
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    // Kết nối đến server
+    // Connect to server
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         close(sock);
@@ -41,7 +41,7 @@ int main() {
     while (!isLoggedIn) {
         printf("Enter command (register/login): ");
         fgets(buffer, BUFFER_SIZE, stdin);
-        buffer[strcspn(buffer, "\n")] = 0; // Xóa ký tự xuống dòng
+        buffer[strcspn(buffer, "\n")] = 0; // Remove newline character
 
         if (send(sock, buffer, strlen(buffer), 0) < 0) {
             perror("Send failed");
@@ -56,7 +56,7 @@ int main() {
             exit(EXIT_FAILURE);
         }
 
-        printf("Server: %s\n", buffer);
+        printf("%s\n", buffer);
 
         // Check for successful login or registration response
         if (strcmp(buffer, "Login successful") == 0 || strcmp(buffer, "Registration successful") == 0) {
@@ -83,7 +83,6 @@ int main() {
 
         // Check for input from stdin
         if (FD_ISSET(STDIN_FILENO, &read_fds)) {
-            printf("You: ");
             fgets(buffer, BUFFER_SIZE, stdin);
             buffer[strcspn(buffer, "\n")] = 0; // Remove newline character
 
@@ -91,6 +90,16 @@ int main() {
             if (strcmp(buffer, "exit") == 0) {
                 printf("Exiting chat room...\n");
                 break;
+            }
+
+            // Check if the input is a chat command
+            if (strncmp(buffer, "chat ", 5) == 0) {
+                // Extract the message part from the command
+                char *message = strchr(buffer + 5, ' '); // Find the second space
+                if (message != NULL) {
+                    message++; // Move past the space
+                    printf("You: %s\n", message); // Display the message locally
+                }
             }
 
             if (send(sock, buffer, strlen(buffer), 0) < 0) {
@@ -107,7 +116,13 @@ int main() {
                 break;
             }
 
-            printf("Server: %s\n", buffer);
+            // Extract sender's username and message
+            char sender[BUFFER_SIZE], message[BUFFER_SIZE];
+            if (sscanf(buffer, "%[^:]: %[^\n]", sender, message) == 2) {
+                printf("%s: %s\n", sender, message); // Display the sender and their message
+            } else {
+                printf("%s\n", buffer); // Handle other server messages
+            }
         }
     }
 
