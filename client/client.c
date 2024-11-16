@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/select.h>
 
+
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
@@ -107,6 +108,8 @@ int main() {
                 break;
             }
         }
+
+        
 
         // Check for message from server
         if (FD_ISSET(sock, &read_fds)) {
