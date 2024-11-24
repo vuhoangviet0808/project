@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignUp</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/main.css">
+    <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <script src="./js/signup.js"></script>
+</head>
+
+<body>
+    <header class="header-login">
+        <div class="grid">
+            <div class="header-login-wrap">
+                <div class="header-logo">
+                </div>
+                <span>Đăng Ký</span>
+            </div>
+        </div>
+    </header>
+    <div class="container-login">
+        <div class="modal__body">
+            <form id="signup-form" class="auth-form">
+                <div class="auth-form__container">
+                    <div class="auth-form__header">
+                        <h3 class="authen-form__heading">Đăng ký</h3>
+                        <span class="authen-form__switach-btn">Đăng nhập</span>
+                    </div>
+                    <div class="auth-form__form">
+                        <div class="auth-form__group">
+                            <input id="username" type="text" class="auth-form__input" placeholder="Nhập tên" />
+                        </div>
+                        <div class="auth-form__group">
+                            <input id="password" type="password" class="auth-form__input" placeholder="Nhập mật khẩu" />
+                        </div>
+                        <div class="auth-form__group">
+                            <input id="confirm-password" type="password" class="auth-form__input"
+                                placeholder="Nhập lại mật khẩu" />
+                        </div>
+                    </div>
+                    <div class="auth-form__aside">
+                        <p class="auth-form__policy-text">
+                            Bằng việc đăng ký, bạn có đồng ý
+                            <a href="" class="auth-form__policy-link">Điều khoản dịch vụ </a>&
+                            <a href="" class="auth-form__policy-link">Chính sách bảo mật</a>
+                        </p>
+                    </div>
+                    <div class="auth-form__controls">
+                        <button class="btn auth-form__controls-back btn-normal">
+                            Trở lại
+                        </button>
+                        <button class="btn btn-primary">Đăng ký</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+
+</html>
