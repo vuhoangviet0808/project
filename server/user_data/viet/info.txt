@@ -1,2 +1,0 @@
-ID:0
-PASSWORD:123
