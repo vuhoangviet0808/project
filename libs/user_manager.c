@@ -36,7 +36,53 @@ int create_user_directory(const char *username, const char *password) {
             fprintf(file, "ID:%d\nPASSWORD:%s", user_id, password);
             fclose(file);
         }
+        file = fopen(U_FILE, "w");
+        fprintf(file, "%s", username);
+        fclose(file);
         return user_id;
     }
     return -1;
 }
+
+
+int load_user_name(Client *clients, int max_clients) {
+    int i = 0;
+    FILE *file = fopen(U_FILE, "r");
+    if (file == NULL) {
+        fprintf(stderr, "Error: Unable to open user file.\n");
+        return -1; 
+    }
+    char buffer[BUFFER_SIZE];
+    while (i < max_clients && fgets(buffer, sizeof(buffer), file) != NULL) {
+        buffer[strcspn(buffer, "\n")] = '\0';
+
+        char info_file[BUFFER_SIZE];
+        snprintf(info_file, sizeof(info_file), "%s/%s/info.txt", BASE_DIR, buffer);
+        FILE *inf_file = fopen(info_file, "r");
+        if (inf_file == NULL) {
+            fprintf(stderr, "Error: Unable to open info file for user '%s'.\n", buffer);
+            continue; 
+        }
+
+        clients[i].id = 0;
+        clients[i].username[0] = '\0';
+        clients[i].password[0] = '\0';
+
+        char buff[BUFFER_SIZE];
+        if (fgets(buff, sizeof(buff), inf_file) != NULL) {
+            sscanf(buff, "ID:%d", &clients[i].id);
+        }
+        if (fgets(buff, sizeof(buff), inf_file) != NULL) {
+            sscanf(buff, "PASSWORD:%s", clients[i].password); 
+        }
+
+        strncpy(clients[i].username, buffer, sizeof(clients[i].username) - 1);
+        clients[i].username[sizeof(clients[i].username) - 1] = '\0';
+
+        fclose(inf_file);
+        i++;
+    }
+    fclose(file);
+    return i;
+}
+

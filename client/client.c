@@ -29,7 +29,6 @@ int main() {
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    // Kết nối đến server
     if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Connection failed");
         close(sock);
@@ -38,7 +37,6 @@ int main() {
 
     printf("Connected to server.\n");
 
-    // Login or register
     while (!isLoggedIn) {
         printf("Enter command (register/login): ");
         fgets(buffer, BUFFER_SIZE, stdin);
@@ -69,7 +67,6 @@ int main() {
 
     printf("Entering chat room...\n");
 
-    // Chat mode with multiplexing
     while (1) {
         FD_ZERO(&read_fds);
         FD_SET(STDIN_FILENO, &read_fds);
