@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room</title>
+    <link rel="stylesheet" href="./css/base.css">
+    <link rel="stylesheet" href="./css/chat.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="./js/chat.js"></script>
+</head>
+
+<body>
+    <div class="messenger">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Cuong</h1> <br />
+                <button class="add-friend-btn"><i class="fas fa-user-plus"></i></button>
+            </div>
+            <div class="chat-list">
+                <div class="chat-item active">
+                    <img src="https://via.placeholder.com/50" alt="Avatar">
+                    <div class="chat-info">
+                        <h4>Vũ Hoàng Việt</h4>
+                        <span class="status online"></span>
+                    </div>
+                </div>
+                <div class="chat-item">
+                    <img src="https://via.placeholder.com/50" alt="Avatar">
+                    <div class="chat-info">
+                        <h4>Hà Tuấn Hoàng</h4>
+                        <span class="status offline"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="chat">
+            <div class="chat-header">
+                <h3>Vũ Hoàng Việt</h3>
+                <div class="chat-actions">
+                </div>
+            </div>
+            <div class="chat-body">
+                <div class="message received">
+                    <p>hi</p>
+                </div>
+                <div class="message sent">
+                    <p>hello</p>
+                </div>
+            </div>
+            <div class="chat-footer">
+                <textarea placeholder="Type a message..."></textarea>
+                <button class="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

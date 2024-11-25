@@ -53,7 +53,7 @@ void *client_handler(void *socket_desc)
             break;
 
         char command[BUFFER_SIZE], username[BUFFER_SIZE], password[BUFFER_SIZE];
-        sscanf(buffer, "%s %s %s", command, username, password);
+        sscanf(buffer, "%s %s %s", command, username, password); // Nhận lệnh từ client (login, register, chat):
 
         if (strcmp(command, "register") == 0)
         {
