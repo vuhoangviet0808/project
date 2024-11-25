@@ -38,7 +38,6 @@ int main() {
 
     printf("Connected to server.\n");
 
-    // Login or register
     while (!isLoggedIn) {
         printf("Enter command (register/login): ");
         fgets(buffer, BUFFER_SIZE, stdin);
@@ -69,7 +68,6 @@ int main() {
 
     printf("Entering chat room...\n");
 
-    // Chat mode with multiplexing
     while (1) {
         FD_ZERO(&read_fds);
         FD_SET(STDIN_FILENO, &read_fds);
