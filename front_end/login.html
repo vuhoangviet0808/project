@@ -14,7 +14,69 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <script src="./js/login.js"></script>
+    <script src="./js/login.js">
+
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            // Chuyển trang sang Đăng ký
+            const switchBtn = document.querySelector(".authen-form__switach-btn");
+            switchBtn.addEventListener("click", () => {
+                window.location.href = "signup.html";
+            });
+
+            // Khởi tạo WebSocket
+            let ws;
+            function setupWS() {
+                ws = new WebSocket("ws://localhost:8080");
+
+                ws.onopen = () => {
+                    document.getElementById("output").innerText = "Connected to WebSocket server";
+                };
+
+                ws.onmessage = (event) => {
+                    const output = document.getElementById("output");
+                    output.innerText += "\nServer: " + event.data;
+                };
+
+                ws.onerror = (error) => {
+                    console.error("WebSocket Error:", error);
+                };
+
+                ws.onclose = () => {
+                    document.getElementById("output").innerText += "\nConnection closed.";
+                    setTimeout(setupWS, 1000); // Tự động kết nối lại sau 1 giây
+                };
+            }
+
+            setupWS(); // Khởi động WebSocket
+
+            // Hàm gửi tin nhắn
+            function sendMessage() {
+                const username = document.getElementById("username").value.trim();
+                const password = document.getElementById("password").value.trim();
+
+                if (!username || !password) {
+                    alert("Vui lòng nhập đầy đủ thông tin!");
+                    return;
+                }
+
+                const message = `login ${username} ${password}`;
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(message);
+                    console.log("Message sent:", message);
+                } else {
+                    alert("Không thể kết nối đến server. Vui lòng thử lại.");
+                }
+            }
+
+            // Gán sự kiện click cho nút Đăng nhập
+            document.querySelector(".btn-primary").addEventListener("click", (e) => {
+                e.preventDefault();
+                sendMessage();
+            });
+        });
+    </script>
 </head>
 
 <body>
@@ -24,6 +86,7 @@
                 <div class="header-logo">
                 </div>
                 <span>Đăng nhập</span>
+                <div id="output"></div>
             </div>
         </div>
     </header>
@@ -59,7 +122,7 @@
                         <button class="btn auth-form__controls-back btn-normal">
                             Trở lại
                         </button>
-                        <button class="btn btn-primary">Đăng nhập</button>
+                        <button class="btn btn-primary" onclick="sendMessage()">Đăng nhập</button>
                     </div>
                 </div>
             </form>

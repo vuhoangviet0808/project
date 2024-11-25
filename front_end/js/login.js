@@ -11,19 +11,27 @@ document.addEventListener("DOMContentLoaded", () => {
         const username = document.getElementById("username").value;
         const password = document.getElementById("password").value;
 
-        fetch("http://localhost:8080", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ command: "login", username, password }),
-        })
-            .then((response) => response.text())
-            .then((data) => {
-                if (data.trim() === "Login successful") {
-                    alert("Đăng nhập thành công!");
-                    window.location.href = "chat.html";
-                } else {
-                    alert(data);
-                }
-            });
+        const ws = new WebSocket('ws://localhost:8080');
+        ws.onopen = () => {
+            document.getElementById('output').innerText = 'Connected to WebSocket server';
+        };
+
+        ws.onmessage = (event) => {
+            const output = document.getElementById('output');
+            output.innerText += '\nServer: ' + event.data;
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+        };
+
+        ws.onclose = () => {
+            document.getElementById('output').innerText += '\nConnection closed.';
+        };
+        function sendMessage() {
+            const message = `login${username} ${password}`;
+            ws.send(message);
+        }
+
     });
 });
