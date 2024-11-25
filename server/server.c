@@ -8,13 +8,12 @@ pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 int number_client;
 
 int main() {
-    printf("1");
     number_client = load_user_name(clients, MAX_CLIENTS);
-    printf("1");
     for(int i=0;i<number_client;i++){
-        printf("%d %s %s\n", clients[i].id, clients[i].username, clients[i].password);
+         printf("%d %s %s\n", clients[i].id, clients[i].username, clients[i].password);
     }
     int server_sock, client_sock, *new_sock;
+
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_size;
 

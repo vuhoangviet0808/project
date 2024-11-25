@@ -36,8 +36,8 @@ int create_user_directory(const char *username, const char *password) {
             fprintf(file, "ID:%d\nPASSWORD:%s", user_id, password);
             fclose(file);
         }
-        file = fopen(U_FILE, "w");
-        fprintf(file, "%s", username);
+        file = fopen(U_FILE, "a");
+        fprintf(file, "%s\n", username);
         fclose(file);
         return user_id;
     }
