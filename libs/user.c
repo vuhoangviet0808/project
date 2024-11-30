@@ -2,6 +2,16 @@
 #include <string.h>
 #include <stdio.h>
 
+
+
+int is_number(const char *str){
+    if(str == NULL || *str == '\0'){
+        return 0;
+    }
+    char *endptr;
+    strtol(str, &endptr, 10);
+    return *endptr == '\0';
+}
 // Gửi yêu cầu kết bạn
 int send_friend_request(Client *sender, Client *receiver) {
     for (int i = 0; i < receiver->request_count; i++) {
@@ -60,11 +70,19 @@ int cancel_friend_request(Client *sender, Client *receiver) {
 }
 
 // Lấy danh sách bạn bè
-void get_friends(Client *user, int friend_list[], int *friend_count) {
-    *friend_count = user->friend_count;
-    for (int i = 0; i < user->friend_count; i++) {
-        friend_list[i] = user->friends[i];
+char* get_friends(Client user) {
+    char listfr[BUFFER_SIZE];
+    listfr[0] = '\0';
+    for(int i=0;i<user.friend_count;i++){
+        char temp[10];
+        sprintf(temp, "%d", user.friends[i]);
+        strcat(listfr, temp);
+        if(i < user.friend_count-1){
+            strcat(listfr, " ");
+        }
     }
+    strcat(listfr, '\0');
+    return listfr;
 }
 
 // Lấy danh sách yêu cầu kết bạn

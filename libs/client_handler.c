@@ -13,15 +13,18 @@ void init_clients()
     }
 }
 
-int add_client(int client_sock, int id, const char *username)
+int add_client(int client_sock, int id, const char *username, const char * password)
 {
     pthread_mutex_lock(&clients_mutex);
     if (id >= 0 && id < MAX_CLIENTS)
-    {
-        clients[id].socket = client_sock;
+    {   
         clients[id].id = id;
         clients[id].is_online = 1;
+        strcpy(clients[id].password, password);
+        strcpy(clients[id].username, username);
+        clients[id].socket = client_sock;
         strncpy(clients[id].username, username, BUFFER_SIZE);
+        strncpy(clients[id].password, password, BUFFER_SIZE);
     }
     pthread_mutex_unlock(&clients_mutex);
     return id;
@@ -68,7 +71,8 @@ void *client_handler(void *socket_desc)
             {
                 int new_id = create_user_directory(username, password);
                 if (new_id != -1)
-                {
+                {   
+                    add_client(client_sock, new_id, username, password);
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Registration successful");
                     send(client_sock, response, strlen(response), 0);
@@ -99,7 +103,7 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    add_client(client_sock, user_id, username); // Thêm client vào mảng
+                    add_client(client_sock, user_id, username, password); // Thêm client vào mảng
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Login successful");
                     send(client_sock, response, strlen(response), 0);
@@ -141,6 +145,135 @@ void *client_handler(void *socket_desc)
                 send(client_sock, error_response, strlen(error_response), 0);
             }
         }
+        else if (strcmp(command, "addfr") == 0)
+        {
+            if (is_number(username))
+            {
+                int receiver_id = atoi(username);
+                pthread_mutex_lock(&clients_mutex);
+
+                if (receiver_id >= 0 && receiver_id < MAX_CLIENTS && clients[receiver_id].is_online)
+                {
+                    int result = send_friend_request(&clients[user_id], &clients[receiver_id]);
+                    pthread_mutex_unlock(&clients_mutex);
+
+                    if (result == 1)
+                    {
+                        send(client_sock, "Friend request sent successfully.\n", strlen("Friend request sent successfully.\n"), 0);
+                    }
+                    else
+                    {
+                        send(client_sock, "Friend request failed. Maybe already sent or full.\n", strlen("Friend request failed. Maybe already sent or full.\n"), 0);
+                    }
+                }
+                else
+                {
+                    pthread_mutex_unlock(&clients_mutex);
+                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+            }
+        } else if (strcmp(command, "accept") == 0)
+        {
+            if (is_number(username))
+            {
+                int sender_id = atoi(username);
+                pthread_mutex_lock(&clients_mutex);
+
+                if (sender_id >= 0 && sender_id < MAX_CLIENTS && clients[sender_id].is_online)
+                {
+                    int result = accept_friend_request(&clients[user_id], &clients[sender_id]);
+                    pthread_mutex_unlock(&clients_mutex);
+
+                    if (result == 1)
+                    {
+                        send(client_sock, "Friend request accepted successfully.\n", strlen("Friend request accepted successfully.\n"), 0);
+                    }
+                    else
+                    {
+                        send(client_sock, "Failed to accept friend request. Maybe list full.\n", strlen("Failed to accept friend request. Maybe list full.\n"), 0);
+                    }
+                }
+                else
+                {
+                    pthread_mutex_unlock(&clients_mutex);
+                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                }
+            } 
+            else
+            {
+                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+            }
+        } else if (strcmp(command, "decline") == 0)
+        {
+            if (is_number(username))
+            {
+                int sender_id = atoi(username);
+                pthread_mutex_lock(&clients_mutex);
+
+                int result = decline_friend_request(&clients[user_id], sender_id);
+                pthread_mutex_unlock(&clients_mutex);
+
+                if (result == 1)
+                {
+                    send(client_sock, "Friend request declined successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                }
+                else
+                {
+                    send(client_sock, "Failed to decline friend request. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "listfr") == 0)
+        {
+            pthread_mutex_lock(&clients_mutex);
+
+            char *friends_list = get_friends(clients[user_id]);
+            pthread_mutex_unlock(&clients_mutex);
+
+            send(client_sock, friends_list, strlen(friends_list), 0);
+        }
+        else if (strcmp(command, "cancel") == 0)
+        {
+            if (is_number(username))
+            {
+                int receiver_id = atoi(username);
+                pthread_mutex_lock(&clients_mutex);
+
+                if (receiver_id >= 0 && receiver_id < MAX_CLIENTS && clients[receiver_id].is_online)
+                {
+                    int result = cancel_friend_request(&clients[user_id], &clients[receiver_id]);
+                    pthread_mutex_unlock(&clients_mutex);
+
+                    if (result == 1)
+                    {
+                        send(client_sock, "Friend request canceled successfully.\n", strlen("Friend request canceled successfully.\n"), 0);
+                    }
+                    else
+                    {
+                        send(client_sock, "Failed to cancel friend request. Request not found.\n", strlen("Failed to cancel friend request. Request not found.\n"), 0);
+                    }
+                }
+                else
+                {
+                    pthread_mutex_unlock(&clients_mutex);
+                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+            }
+        }
+
+
         else
         {
             send(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);
@@ -153,3 +286,5 @@ void *client_handler(void *socket_desc)
     free(socket_desc);
     return NULL;
 }
+
+
