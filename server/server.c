@@ -20,6 +20,14 @@ int main() {
         log_message("Socket creation failed");
         exit(EXIT_FAILURE);
     }
+    
+    // Add this block to set SO_REUSEADDR
+    int opt = 1;
+    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        log_message("setsockopt(SO_REUSEADDR) failed");
+        close(server_sock);
+        exit(EXIT_FAILURE);
+    }
 
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
