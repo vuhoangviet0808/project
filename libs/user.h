@@ -7,7 +7,7 @@
 
 
 
-
+int is_number(const char *str);
 void init_user(Client *user, const char *username, const char *password, int id);
 
 
@@ -23,7 +23,7 @@ int accept_friend_request(Client *sender, Client *receiver);
 int decline_friend_request(Client *user, int sender_id);
 int cancel_friend_request(Client *sender, Client *receiver);
 
-void get_friends(Client *user, int friend_list[], int *friend_count);
+char* get_friends(Client user);
 void get_friend_requests(Client *user, int request_list[], int *request_count);
 
 #endif // USER_MANAGER_H
