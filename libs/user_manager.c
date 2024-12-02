@@ -1,8 +1,8 @@
 #include "user_manager.h"
 
-int next_id = 0;
 
-void load_next_id() {
+int load_next_id() {
+    int next_id;
     FILE *file = fopen(ID_FILE, "r");
     if (file) {
         fscanf(file, "%d", &next_id);
@@ -10,9 +10,10 @@ void load_next_id() {
     } else {
         next_id = 0;  
     }
+    return next_id;
 }
 
-void save_next_id() {
+void save_next_id(int next_id) {
     FILE *file = fopen(ID_FILE, "w");
     if (file) {
         fprintf(file, "%d", next_id);
@@ -25,8 +26,9 @@ int create_user_directory(const char *username, const char *password) {
     snprintf(user_dir, sizeof(user_dir), "%s/%s", BASE_DIR, username);
 
     if (mkdir(user_dir, 0700) == 0) {
-        int user_id = next_id++;
-        save_next_id();  
+        int user_id = load_next_id();
+        int next_id = user_id + 1;
+        save_next_id(next_id);  
 
         char info_file[BUFFER_SIZE];
         snprintf(info_file, sizeof(info_file), "%s/info.txt", user_dir);

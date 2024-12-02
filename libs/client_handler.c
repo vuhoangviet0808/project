@@ -1,8 +1,10 @@
+#include "user.h"
 #include "client_handler.h"
 #include "utils.h"
 #include "user_manager.h"
 #include "message_handler.h"
 #include "common.h"
+
 
 void init_clients()
 {
@@ -20,8 +22,8 @@ int add_client(int client_sock, int id, const char *username, const char * passw
     {   
         clients[id].id = id;
         clients[id].is_online = 1;
-        strcpy(clients[id].password, password);
-        strcpy(clients[id].username, username);
+        //strcpy(clients[id].password, password);
+        //strcpy(clients[id].username, username);
         clients[id].socket = client_sock;
         strncpy(clients[id].username, username, BUFFER_SIZE);
         strncpy(clients[id].password, password, BUFFER_SIZE);
@@ -46,8 +48,7 @@ void *client_handler(void *socket_desc)
     int client_sock = *(int *)socket_desc;
     char buffer[BUFFER_SIZE];
     int user_id = -1;
-
-    while (1)
+    while (1)   
     {
         memset(buffer, 0, BUFFER_SIZE);
 
@@ -72,10 +73,18 @@ void *client_handler(void *socket_desc)
                 int new_id = create_user_directory(username, password);
                 if (new_id != -1)
                 {   
-                    add_client(client_sock, new_id, username, password);
+                    //int id = add_client(client_sock, new_id, username, password);
+                    //printf("%d\n", id);
+                    user_id = new_id;
+                    clients[user_id].id = user_id;
+                    clients[user_id].is_online = 1;
+                    clients[user_id].socket = client_sock;
+                    strncpy(clients[user_id].username, username, BUFFER_SIZE);
+                    strncpy(clients[user_id].password, password, BUFFER_SIZE);
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Registration successful");
                     send(client_sock, response, strlen(response), 0);
+                    printf("%d %d %s %s\n", clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
                 }
                 else
                 {
@@ -103,10 +112,19 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    add_client(client_sock, user_id, username, password); // Thêm client vào mảng
+                    //add_client(client_sock, user_id, username, password); // Thêm client vào mảng
+                    
+                    clients[user_id].is_online = 1;
+                    clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Login successful");
                     send(client_sock, response, strlen(response), 0);
+                    for(int i=0;i<MAX_CLIENTS;i++){
+                        if(clients[i].is_online){
+                            printf("i ");
+                        }
+                    }
+                    printf("\n");
                 }
                 else
                 {
@@ -150,9 +168,10 @@ void *client_handler(void *socket_desc)
             if (is_number(username))
             {
                 int receiver_id = atoi(username);
+                printf("%d\n", receiver_id);
                 pthread_mutex_lock(&clients_mutex);
 
-                if (receiver_id >= 0 && receiver_id < MAX_CLIENTS && clients[receiver_id].is_online)
+                if (receiver_id >= 0 && receiver_id < MAX_CLIENTS)
                 {
                     int result = send_friend_request(&clients[user_id], &clients[receiver_id]);
                     pthread_mutex_unlock(&clients_mutex);
@@ -183,7 +202,7 @@ void *client_handler(void *socket_desc)
                 int sender_id = atoi(username);
                 pthread_mutex_lock(&clients_mutex);
 
-                if (sender_id >= 0 && sender_id < MAX_CLIENTS && clients[sender_id].is_online)
+                if (sender_id >= 0 && sender_id < MAX_CLIENTS )
                 {
                     int result = accept_friend_request(&clients[user_id], &clients[sender_id]);
                     pthread_mutex_unlock(&clients_mutex);
@@ -271,7 +290,37 @@ void *client_handler(void *socket_desc)
             {
                 send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
+        } else if (strcmp(command, "listreq") == 0)
+        {
+            pthread_mutex_lock(&clients_mutex);
+
+            int request_list[MAX_REQUESTS];
+            int request_count = 0;
+
+            get_friend_requests(&clients[user_id], request_list, &request_count);
+
+            pthread_mutex_unlock(&clients_mutex);
+
+            if (request_count > 0)
+            {
+                char response[BUFFER_SIZE] = "Friend requests from: ";
+                for (int i = 0; i < request_count; i++)
+                {
+                    char temp[BUFFER_SIZE];
+                    snprintf(temp, sizeof(temp), "%d", request_list[i]);
+                    strcat(response, temp);
+                    if (i < request_count - 1)
+                        strcat(response, ", ");
+                }
+                strcat(response, "\n");
+                send(client_sock, response, strlen(response), 0);
+            }
+            else
+            {
+                send(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
+            }
         }
+
 
 
         else

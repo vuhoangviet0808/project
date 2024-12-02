@@ -1,0 +1,158 @@
+/* General Styles */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: #f0f2f5;
+}
+
+.messenger {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    background: #fff;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 30%;
+    background: #f8f9fa;
+    border-right: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+}
+
+.chat-list {
+    overflow-y: auto;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.chat-item.active {
+    background: #e6f7ff;
+}
+
+.chat-item img {
+    border-radius: 50%;
+    margin-right: 10px;
+}
+.chat-info{
+    display: flex;
+
+}
+
+.chat-info h4 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.chat-info p {
+    margin: 0;
+    font-size: 14px;
+    color: gray;
+}
+
+/* Chat Section */
+.chat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+}
+.chat-header h3{
+    font-size: 20px;
+}
+
+.chat-body {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.message {
+    margin-bottom: 15px;
+    max-width: 60%;
+}
+
+.message.sent {
+    margin-left: auto;
+    text-align: right;
+    background: #d1f0f1;
+    border-radius: 15px;
+    padding: 10px;
+}
+.message.sent p{
+    font-size: 20px;
+}
+
+.message.received {
+    background: #f0f0f0;
+    border-radius: 15px;
+    padding: 10px;
+}
+.message.received  p{
+    font-size: 20px;
+}
+
+.chat-footer {
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+}
+
+textarea {
+    flex: 1;
+    border: none;
+    resize: none;
+    padding: 10px;
+    border-radius: 5px;
+    margin-right: 10px;
+}
+
+.send-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+}
+
+/* status  */
+.status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-left: 5px;
+}
+
+.status.online {
+    background-color: green;
+    margin-left: auto;
+}
+
+.status.offline {
+    background-color: gray;
+}
