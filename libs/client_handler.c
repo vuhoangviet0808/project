@@ -76,15 +76,15 @@ void *client_handler(void *socket_desc)
                     //int id = add_client(client_sock, new_id, username, password);
                     //printf("%d\n", id);
                     user_id = new_id;
-                    clients[user_id].id = user_id;
-                    clients[user_id].is_online = 1;
-                    clients[user_id].socket = client_sock;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
                     strncpy(clients[user_id].password, password, BUFFER_SIZE);
+                    clients[user_id].id = new_id;
+                    clients[user_id].is_online = 1;
+                    clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Registration successful");
                     send(client_sock, response, strlen(response), 0);
-                    printf("%d %d %s %s\n", clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
+                    printf("%d %d %d %s %s\n", user_id,clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
                 }
                 else
                 {
@@ -119,12 +119,6 @@ void *client_handler(void *socket_desc)
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Login successful");
                     send(client_sock, response, strlen(response), 0);
-                    for(int i=0;i<MAX_CLIENTS;i++){
-                        if(clients[i].is_online){
-                            printf("i ");
-                        }
-                    }
-                    printf("\n");
                 }
                 else
                 {
