@@ -3,7 +3,7 @@
 #include "user_manager.h"
 #include "message_handler.h"
 #include "common.h"
-
+#include "room_manager.h"
 void init_clients()
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -46,14 +46,15 @@ void *client_handler(void *socket_desc)
 
     while (1)
     {
+
         memset(buffer, 0, BUFFER_SIZE);
 
         int read_size = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (read_size <= 0)
             break;
 
-        char command[BUFFER_SIZE], username[BUFFER_SIZE], password[BUFFER_SIZE];
-        sscanf(buffer, "%s %s %s", command, username, password); // Nhận lệnh từ client (login, register, chat):
+        char command[BUFFER_SIZE], username[BUFFER_SIZE] = {0}, password[BUFFER_SIZE] = {0};
+        int num_fields = sscanf(buffer, "%s %s %s", command, username, password);
 
         if (strcmp(command, "register") == 0)
         {
@@ -141,6 +142,115 @@ void *client_handler(void *socket_desc)
                 send(client_sock, error_response, strlen(error_response), 0);
             }
         }
+        else if (strcmp(command, "create_room") == 0)
+        {
+            int room_id = create_room(username, user_id);
+            if (room_id != -1)
+            {
+                char response[BUFFER_SIZE];
+                snprintf(response, BUFFER_SIZE, "Room created with ID %d\n", room_id);
+                send(client_sock, response, strlen(response), 0);
+            }
+            else
+            {
+                send(client_sock, "Failed to create room 123.\n", strlen("Failed to create room 123.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "join_room") == 0)
+        {
+            int room_id = atoi(username); // Tìm room_id từ tên
+            if (room_id == -1)
+            {
+                send(client_sock, "Room does not exist.\n", strlen("Room does not exist.\n"), 0);
+            }
+            else if (join_room(room_id, user_id))
+            {
+                send(client_sock, "Joined room successfully.\n", strlen("Joined room successfully.\n"), 0);
+            }
+            else
+            {
+                send(client_sock, "Failed to join room.\n", strlen("Failed to join room.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "room_message") == 0)
+        {
+            int room_id;
+            char message[BUFFER_SIZE];
+
+            // Phân tích cú pháp để lấy room_id và phần còn lại là tin nhắn
+            char *token = strtok(buffer + strlen(command) + 1, " ");
+            if (token)
+            {
+                room_id = atoi(token);
+                char *message_start = buffer + strlen(command) + strlen(token) + 2;
+                strncpy(message, message_start, BUFFER_SIZE - 1);
+                message[BUFFER_SIZE - 1] = '\0';
+
+                if (room_message(room_id, user_id, message))
+                {
+                    send(client_sock, "Message sent to room.\n", strlen("Message sent to room.\n"), 0);
+                }
+                else
+                {
+                    send(client_sock, "Failed to send message to room.\n", strlen("Failed to send message to room.\n"), 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Invalid room_message format.\n", strlen("Invalid room_message format.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "add_to_room") == 0)
+        {
+            int room_id, target_user_id;
+            sscanf(buffer + strlen(command) + 1, "%d %d", &room_id, &target_user_id);
+
+            if (add_user_to_room(room_id, target_user_id))
+            {
+                send(client_sock, "User added to room successfully.\n", strlen("User added to room successfully.\n"), 0);
+
+                // Gửi thông báo đến người dùng được thêm
+                // if (clients[target_user_id].is_online)
+                // {
+                char notify_message[BUFFER_SIZE];
+                snprintf(notify_message, sizeof(notify_message),
+                         "You have been added to room %d by %s.\n",
+                         room_id, clients[user_id].username);
+                send(clients[target_user_id].socket, notify_message, strlen(notify_message), 0);
+                // }
+            }
+            else
+            {
+                send(client_sock, "Failed to add user to room.\n", strlen("Failed to add user to room.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "leave_room") == 0)
+        {
+            int room_id = atoi(username); // Room ID được truyền trong trường username
+            if (leave_room(room_id, user_id))
+            {
+                send(client_sock, "You have leave the room successfully.\n", strlen("You have leave the room successfully.\n"), 0);
+            }
+            else
+            {
+                send(client_sock, "Failed to leave the room.\n", strlen("Failed to leave the room.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "remove_user") == 0)
+        {
+            int room_id = atoi(username);           // Room ID truyền ở phần username
+            int user_id_to_remove = atoi(password); // User ID cần xóa truyền ở phần password
+
+            if (remove_user_from_room(room_id, user_id, user_id_to_remove))
+            {
+                send(client_sock, "User removed from room successfully.\n", strlen("User removed from room successfully.\n"), 0);
+            }
+            else
+            {
+                send(client_sock, "Failed to remove user from room.\n", strlen("Failed to remove user from room.\n"), 0);
+            }
+        }
+
         else
         {
             send(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);

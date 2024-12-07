@@ -1,0 +1,14 @@
+JOIN vu 5
+JOIN cuong 2
+JOIN viet 0
+JOIN hoang 6
+MESSAGE viet 0 hello2
+MESSAGE hoang 6 hello3
+MESSAGE hoang 6 hello23
+MESSAGE cuong 2 hello2 123
+MESSAGE hoang 6 toi la hoang
+MESSAGE cuong 2 toi la cuong
+MESSAGE viet 0 minh la viet
+MESSAGE viet 0 xin chao
+LEAVE viet 0
+JOIN viet 0

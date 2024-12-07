@@ -1,0 +1,7 @@
+JOIN cuong 2
+JOIN viet 0
+MESSAGE cuong 2 hello
+MESSAGE viet 0 xin
+JOIN hoang 6
+MESSAGE hoang 6 Hoang123
+ADD vu 5

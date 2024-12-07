@@ -1,0 +1,2 @@
+JOIN cuong 2
+JOIN hoang 6

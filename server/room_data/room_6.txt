@@ -1,0 +1,5 @@
+JOIN cuong 2
+JOIN viet 0
+JOIN hoang 6
+ADD  5
+JOIN hoang 6
