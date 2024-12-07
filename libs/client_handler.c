@@ -71,6 +71,7 @@ void *client_handler(void *socket_desc)
             else
             {
                 int new_id = create_user_directory(username, password);
+
                 if (new_id != -1)
                 {   
                     //int id = add_client(client_sock, new_id, username, password);
@@ -313,10 +314,29 @@ void *client_handler(void *socket_desc)
             {
                 send(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
             }
+        } else if(strcmp(command, "remove") == 0){
+            if (is_number(username))
+            {
+                int sender_id = atoi(username);
+                pthread_mutex_lock(&clients_mutex);
+
+                int result = remove_friend(&clients[user_id], &clients[sender_id]);
+                pthread_mutex_unlock(&clients_mutex);
+
+                if (result == 1)
+                {
+                    send(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                }
+                else
+                {
+                    send(client_sock, "Failed to remove friend. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                }
+            }
+            else
+            {
+                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+            }
         }
-
-
-
         else
         {
             send(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);

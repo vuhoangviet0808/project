@@ -23,8 +23,8 @@
 
 typedef struct {
     int socket;
-    char username[50];  
-    char password[50];  
+    char username[BUFFER_SIZE];  
+    char password[BUFFER_SIZE];  
     int id;             
     int is_online;    
 
