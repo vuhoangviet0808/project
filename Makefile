@@ -4,7 +4,7 @@ LDFLAGS = -ljson-c
 
 SRCDIR = libs
 OBJDIR = server
-SRC = server/server.c $(SRCDIR)/client_handler.c $(SRCDIR)/user_manager.c $(SRCDIR)/utils.c $(SRCDIR)/message_handler.c $(SRCDIR)/room_manager.c
+SRC = server/server.c $(SRCDIR)/client_handler.c $(SRCDIR)/user_manager.c $(SRCDIR)/utils.c $(SRCDIR)/message_handler.c $(SRCDIR)/user.c $(SRCDIR)/room_manager.c
 OBJ = $(SRC:.c=.o)
 
 all: $(OBJDIR)/server
