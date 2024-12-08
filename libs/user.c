@@ -12,38 +12,95 @@ int is_number(const char *str){
     strtol(str, &endptr, 10);
     return *endptr == '\0';
 }
-// Gửi yêu cầu kết bạn
+
+void write_friend_list(Client *client) {
+    char directory_name[BUFFER_SIZE];
+    char friend_file[BUFFER_SIZE];
+    FILE *f_friend;
+    snprintf(directory_name, sizeof(directory_name), "%s/%s", BASE_DIR,client->username);
+    mkdir(directory_name, 0777);
+
+    snprintf(friend_file, sizeof(friend_file), "%s/friend.txt", directory_name);
+    f_friend = fopen(friend_file, "w");
+    if (f_friend == NULL) {
+        perror("Không thể mở file friend.txt");
+        return;
+    }
+    for (int i = 0; i < client->friend_count; i++) {
+        fprintf(f_friend, "%d", client->friends[i]);
+        if(i < client->friend_count-1) fprintf(f_friend, " ");
+    }
+
+    fclose(f_friend);
+}
+
+void write_friend_request(Client *receiver) {
+    char directory_name[BUFFER_SIZE];
+    char request_file[BUFFER_SIZE];
+    FILE *f_request;
+
+    snprintf(directory_name, sizeof(directory_name), "%s/%s", BASE_DIR,receiver->username);
+    mkdir(directory_name, 0777);
+
+    snprintf(request_file, sizeof(request_file), "%s/listreq.txt", directory_name);
+    f_request = fopen(request_file, "a");
+    if (f_request == NULL) {
+        perror("Không thể mở file listreq.txt");
+        return;
+    }
+
+    for (int i = 0; i < receiver->request_count; i++) {
+            fprintf(f_request, "%d", receiver->add_friend_requests[i]);
+            if (i < receiver->request_count - 1) {
+                fprintf(f_request, " ");
+            }
+        }
+
+    fclose(f_request);
+}
+
+
 int send_friend_request(Client *sender, Client *receiver) {
     for (int i = 0; i < receiver->request_count; i++) {
         if (receiver->add_friend_requests[i] == sender->id) {
             return 0; 
         }
     }
-    // for (int i = 0; i < receiver->friend_count; i++) {
-    //     if (receiver->friends[i] == sender->id) {
-    //         return 0; 
-    //     }
-    // }
 
-    // Thêm yêu cầu vào danh sách
     if (receiver->request_count < MAX_REQUESTS) {
         receiver->add_friend_requests[receiver->request_count] = sender->id;
         receiver->request_count++;
+
+
+        write_friend_request(receiver);
         return 1;
     }
-    return 0; // Danh sách yêu cầu kết bạn đã đầy
+
+    return 0;
 }
 
 int accept_friend_request(Client *sender, Client *receiver) {
     if(sender->friend_count < MAX_FRIENDS && receiver->friend_count < MAX_FRIENDS){
         sender->friends[sender->friend_count++] = receiver->id;
         receiver->friends[receiver->friend_count++] = sender->id;
+
+        for(int i=0;i<sender->request_count;i++){
+            if(sender->add_friend_requests[i] == receiver->id){
+                for(int j=i;j<sender->request_count-1;j++){
+                    sender->add_friend_requests[j] = sender->add_friend_requests[j+1];
+                }
+                sender->request_count--;
+                sender->add_friend_requests[sender->request_count] = 0;
+            }
+        }
+        write_friend_request(sender);
+        write_friend_list(sender);
+        write_friend_list(receiver);
         return 1;
     }
     return 0;
 }
 
-// Từ chối yêu cầu kết bạn
 int decline_friend_request(Client *user, int sender_id) {
     for (int i = 0; i < user->request_count; i++) {
         if (user->add_friend_requests[i] == sender_id) {
@@ -52,6 +109,7 @@ int decline_friend_request(Client *user, int sender_id) {
                 user->add_friend_requests[j] = user->add_friend_requests[j+1];
             }
             user->request_count--;
+            write_friend_request(user);
             return 1;
         }
     }
@@ -65,6 +123,7 @@ int cancel_friend_request(Client *sender, Client *receiver) {
                 receiver->add_friend_requests[j] = receiver->add_friend_requests[j+1];
             }
             receiver->request_count--;
+            write_friend_request(receiver);
             return 1;
         }
     }
@@ -121,5 +180,7 @@ int remove_friend(Client* sender, Client* receiver){
             return 1; 
         }
     }
+    write_friend_list(sender);
+    write_friend_list(receiver);
     return 0; 
 }
