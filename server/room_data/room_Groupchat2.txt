@@ -1,4 +1,0 @@
-JOIN cuong 2
-ADD vu 5
-MESSAGE vu 5 toi la vu
-
