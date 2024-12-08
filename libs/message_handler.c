@@ -5,8 +5,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define CONVERSATION_ID_LENGTH 12
-
 extern Client clients[MAX_CLIENTS];
 
 void generate_fixed_id(char *buffer) {
@@ -26,7 +24,8 @@ void ensure_directory_exists(const char *path) {
 
 char *get_or_create_shared_conversation_id(const char *sender_file, const char *receiver_file, char *buffer) {
     FILE *file;
-    // Try to read sender's conversation file first
+
+    // Try to read sender's file first
     file = fopen(sender_file, "r");
     if (file) {
         if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
@@ -37,7 +36,7 @@ char *get_or_create_shared_conversation_id(const char *sender_file, const char *
         fclose(file);
     }
 
-    // If sender's file doesn't have an ID, check receiver's conversation file
+    // If sender's file doesn't have an ID, check receiver's file
     file = fopen(receiver_file, "r");
     if (file) {
         if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
@@ -83,9 +82,9 @@ void store_message(int sender_id, int receiver_id, const char *message) {
     ensure_directory_exists(sender_folder);
     ensure_directory_exists(receiver_folder);
 
-    // Paths to conversations.txt files
-    snprintf(sender_conversation_file, BUFFER_SIZE, "%s/conversations.txt", sender_folder);
-    snprintf(receiver_conversation_file, BUFFER_SIZE, "%s/conversations.txt", receiver_folder);
+    // Paths to individual conversation files
+    snprintf(sender_conversation_file, BUFFER_SIZE, "%s/%s.txt", sender_folder, clients[receiver_id].username);
+    snprintf(receiver_conversation_file, BUFFER_SIZE, "%s/%s.txt", receiver_folder, clients[sender_id].username);
 
     // Get or create shared conversation ID
     get_or_create_shared_conversation_id(sender_conversation_file, receiver_conversation_file, conversation_id);
@@ -133,4 +132,86 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
 
     // Store the message
     store_message(sender_id, receiver_id, message);
+}
+
+void send_offline_message(int sender_id, int receiver_id, const char *message) {
+    if (!message) {
+        fprintf(stderr, "Null pointer error in send_private_message\n");
+        return;
+    }
+
+    if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
+        fprintf(stderr, "Invalid sender or receiver ID in send_private_message\n");
+        return;
+    }
+
+    char message_buffer[BUFFER_SIZE];
+    snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
+
+    // Store the message
+    store_message(sender_id, receiver_id, message);
+}
+
+void retrieve_message(int sender_id, int receiver_id) {
+    char sender_conversation_file[BUFFER_SIZE];
+    char conversation_id[CONVERSATION_ID_LENGTH + 1] = {0};
+    MessageList *message_list = malloc(sizeof(MessageList));
+    message_list->count = 0;
+
+    char line[BUFFER_SIZE];
+    char *response = malloc(RESPONSE_SIZE);
+    size_t response_size = 0;
+
+    snprintf(sender_conversation_file, BUFFER_SIZE, "user_data/%s/conversations/%s.txt",
+             clients[sender_id].username, clients[receiver_id].username);
+
+    FILE *file = fopen(sender_conversation_file, "r");
+    if (file == NULL) {
+        free(response);
+        free(message_list);
+        return;
+    }
+
+    if (fgets(conversation_id, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
+        conversation_id[strcspn(conversation_id, "\n")] = '\0'; // Remove newline
+    }
+    fclose(file);
+
+    char conversation_file[BUFFER_SIZE];
+    snprintf(conversation_file, BUFFER_SIZE, "conversation_data/%s.txt", conversation_id);
+
+    file = fopen(conversation_file, "r");
+    if (file == NULL) {
+        free(response);
+        free(message_list);
+        return;
+    }
+
+    // Read and parse each line in the file
+    while (fgets(line, sizeof(line), file) && message_list->count < MAX_MESSAGES) {
+        Message *msg = &message_list->messages[message_list->count++];
+        if (sscanf(line, "[%19[^]]] %[^:]: %[^\n]", msg->timestamp, msg->username, msg->message) == 3) {
+            // Successfully parsed timestamp, username, and message
+        } else {
+            --message_list->count; // Revert count if line is invalid
+        }
+    }
+    fclose(file);
+
+    // Build the response string
+    for (int i = 0; i < message_list->count; i++) {
+        Message *msg = &message_list->messages[i];
+        int written = snprintf(response + response_size, RESPONSE_SIZE - response_size,
+                               "[%s] %s: %s\n", msg->timestamp, msg->username, msg->message);
+        if (written < 0 || written >= RESPONSE_SIZE - response_size) {
+            break;
+        }
+        response_size += written;
+    }
+
+    printf("Response: %s\n", response);
+    send(clients[sender_id].socket, response, response_size, 0);
+
+    free(response);
+    free(message_list);
 }

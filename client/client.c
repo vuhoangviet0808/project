@@ -111,17 +111,17 @@ int main() {
         // Check for message from server
         if (FD_ISSET(sock, &read_fds)) {
             memset(buffer, 0, BUFFER_SIZE);
-            if (recv(sock, buffer, BUFFER_SIZE, 0) < 0) {
+            int bytes_received;
+            while ((bytes_received = recv(sock, buffer, BUFFER_SIZE - 1, 0)) > 0) {
+                buffer[bytes_received] = '\0'; // Null-terminate the received data
+                printf("%s", buffer);
+                if (bytes_received < BUFFER_SIZE - 1) {
+                    break;
+                }
+            }
+            if (bytes_received < 0) {
                 perror("Receive failed");
                 break;
-            }
-
-            // Extract sender's username and message
-            char sender[BUFFER_SIZE], message[BUFFER_SIZE];
-            if (sscanf(buffer, "%[^:]: %[^\n]", sender, message) == 2) {
-                printf("%s: %s\n", sender, message); // Display the sender and their message
-            } else {
-                printf("%s\n", buffer); // Handle other server messages
             }
         }
     }

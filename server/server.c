@@ -20,7 +20,7 @@ int main() {
         log_message("Socket creation failed");
         exit(EXIT_FAILURE);
     }
-    
+
     // Add this block to set SO_REUSEADDR
     int opt = 1;
     if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {

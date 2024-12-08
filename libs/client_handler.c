@@ -52,11 +52,15 @@ void *client_handler(void *socket_desc)
         if (read_size <= 0)
             break;
 
-        char command[BUFFER_SIZE], username[BUFFER_SIZE], password[BUFFER_SIZE];
-        sscanf(buffer, "%s %s %s", command, username, password);
+        char command[BUFFER_SIZE], payload[BUFFER_SIZE];
+        sscanf(buffer, "%s %[^\n]", command, payload);
+
+        printf("Debug: command %s, payload %s\n", command, payload);
 
         if (strcmp(command, "register") == 0)
         {
+            char username[BUFFER_SIZE], password[BUFFER_SIZE];
+            sscanf(payload, "%s %s", username, password);
             char user_dir[BUFFER_SIZE];
             snprintf(user_dir, sizeof(user_dir), "%s/%s", BASE_DIR, username);
 
@@ -82,6 +86,8 @@ void *client_handler(void *socket_desc)
         else if (strcmp(command, "login") == 0)
         {
             char info_file[BUFFER_SIZE];
+            char username[BUFFER_SIZE], password[BUFFER_SIZE];
+            sscanf(payload, "%s %s", username, password);
             snprintf(info_file, sizeof(info_file), "%s/%s/info.txt", BASE_DIR, username);
 
             if (access(info_file, F_OK) == -1)
@@ -116,7 +122,7 @@ void *client_handler(void *socket_desc)
             char message[BUFFER_SIZE];
             int sender_id = user_id, receiver_id = -1;
 
-            sscanf(buffer + strlen(command) + 1, "%s %[^\n]", recver, message);
+            sscanf(payload, "%s %[^\n]", recver, message);
 
             pthread_mutex_lock(&clients_mutex);
             for (int i = 0; i < MAX_CLIENTS; i++)
@@ -138,6 +144,66 @@ void *client_handler(void *socket_desc)
             {
                 char error_response[BUFFER_SIZE];
                 snprintf(error_response, BUFFER_SIZE, "User %s is not online or does not exist.", recver);
+                send(client_sock, error_response, strlen(error_response), 0);
+            }
+        }
+        else if (strcmp(command, "chat_offline") == 0)
+        {
+            char recver[BUFFER_SIZE];
+            char message[BUFFER_SIZE];
+            int sender_id = user_id, receiver_id = -1;
+
+            sscanf(payload, "%s %[^\n]", recver, message);
+
+            pthread_mutex_lock(&clients_mutex);
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if (strcmp(clients[i].username, recver) == 0)
+                {
+                    receiver_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&clients_mutex);
+
+            if (receiver_id != -1)
+            {
+                send_offline_message(sender_id, receiver_id, message);
+                log_message("User %s sent offline message to %s", clients[sender_id].username, recver);
+            }
+            else
+            {
+                char error_response[BUFFER_SIZE];
+                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
+                send(client_sock, error_response, strlen(error_response), 0);
+            }
+        }
+        else if (strcmp(command, "rt") == 0)
+        {
+            char recver[BUFFER_SIZE];
+            int sender_id = user_id, receiver_id = -1;
+
+            sscanf(payload, "%s %[^\n]", recver);
+
+            pthread_mutex_lock(&clients_mutex);
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                if (strcmp(clients[i].username, recver) == 0)
+                {
+                    receiver_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&clients_mutex);
+
+            if (receiver_id != -1)
+            {
+                retrieve_message(sender_id, receiver_id);
+            }
+            else
+            {
+                char error_response[BUFFER_SIZE];
+                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
                 send(client_sock, error_response, strlen(error_response), 0);
             }
         }
