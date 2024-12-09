@@ -85,9 +85,84 @@ int load_user_name(Client *clients, int max_clients) {
         clients[user_id].username[sizeof(clients[user_id].username) - 1] = '\0';
         clients[user_id].id = user_id;
         fclose(inf_file);
+        read_friend_list(&clients[user_id]);
+        read_friend_request(&clients[user_id]);
         i++;
     }
     fclose(file);
     return i;
 }
 
+void trim_whitespace(char *str) {
+    char *end;
+
+    // Trim leading spaces
+    while (isspace((unsigned char)*str)) str++;
+
+    // If string is all spaces
+    if (*str == 0) return;
+
+    // Trim trailing spaces
+    end = str + strlen(str) - 1;
+    while (end > str && isspace((unsigned char)*end)) end--;
+
+    // Write null terminator
+    *(end + 1) = '\0';
+}
+
+void read_friend_request(Client *receiver) {
+    char directory_name[BUFFER_SIZE];
+    char request_file[BUFFER_SIZE];
+    FILE *f_request;
+
+    snprintf(directory_name, sizeof(directory_name), "%s/%s", BASE_DIR, receiver->username);
+    snprintf(request_file, sizeof(request_file), "%s/listreq.txt", directory_name);
+
+    f_request = fopen(request_file, "r");
+    if (f_request == NULL) {
+        perror("Không thể mở file listreq.txt");
+        return;
+    }
+
+    receiver->request_count = 0;
+
+    char line[BUFFER_SIZE];
+    if (fgets(line, sizeof(line), f_request)) {
+        trim_whitespace(line); 
+        char *token = strtok(line, " ");
+        while (token != NULL && receiver->request_count < MAX_REQUESTS) {
+            receiver->add_friend_requests[receiver->request_count++] = atoi(token);
+            token = strtok(NULL, " ");
+        }
+    }
+
+
+    fclose(f_request);
+}
+
+void read_friend_list(Client *receiver) {
+    char directory_name[BUFFER_SIZE];
+    char friend_file[BUFFER_SIZE];
+    FILE *f_friend;
+
+    snprintf(directory_name, sizeof(directory_name), "%s/%s", BASE_DIR, receiver->username);
+    snprintf(friend_file, sizeof(friend_file), "%s/friend.txt", directory_name);
+
+    f_friend = fopen(friend_file, "r");
+    if (f_friend == NULL) {
+        perror("Không thể mở file friend.txt");
+        return;
+    }
+
+    receiver->friend_count = 0;
+    char line[BUFFER_SIZE];
+    if (fgets(line, sizeof(line), f_friend)) {
+        trim_whitespace(line);
+        char *token = strtok(line, " ");
+        while (token != NULL && receiver->friend_count < MAX_FRIENDS) {
+            receiver->friends[receiver->friend_count++] = atoi(token);
+            token = strtok(NULL, " ");
+        }
+    }
+    fclose(f_friend);
+}

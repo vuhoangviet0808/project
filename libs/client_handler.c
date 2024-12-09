@@ -43,6 +43,7 @@ void remove_client(int id)
     pthread_mutex_unlock(&clients_mutex);
 }
 
+
 void *client_handler(void *socket_desc)
 {
     int client_sock = *(int *)socket_desc;
@@ -83,7 +84,7 @@ void *client_handler(void *socket_desc)
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
-                    snprintf(response, BUFFER_SIZE, "Registration successful");
+                    snprintf(response, BUFFER_SIZE, "%d", new_id);
                     send(client_sock, response, strlen(response), 0);
                     printf("%d %d %d %s %s\n", user_id,clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
                 }
@@ -118,7 +119,7 @@ void *client_handler(void *socket_desc)
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
-                    snprintf(response, BUFFER_SIZE, "Login successful");
+                    snprintf(response, BUFFER_SIZE, "%d", user_id);
                     send(client_sock, response, strlen(response), 0);
                 }
                 else

@@ -30,7 +30,7 @@ void write_friend_list(Client *client) {
         fprintf(f_friend, "%d", client->friends[i]);
         if(i < client->friend_count-1) fprintf(f_friend, " ");
     }
-
+    fprintf(f_friend, " ");
     fclose(f_friend);
 }
 
@@ -43,7 +43,7 @@ void write_friend_request(Client *receiver) {
     mkdir(directory_name, 0777);
 
     snprintf(request_file, sizeof(request_file), "%s/listreq.txt", directory_name);
-    f_request = fopen(request_file, "a");
+    f_request = fopen(request_file, "w");
     if (f_request == NULL) {
         perror("Không thể mở file listreq.txt");
         return;
@@ -55,6 +55,7 @@ void write_friend_request(Client *receiver) {
                 fprintf(f_request, " ");
             }
         }
+    fprintf(f_request, " ");
 
     fclose(f_request);
 }
@@ -104,7 +105,6 @@ int accept_friend_request(Client *sender, Client *receiver) {
 int decline_friend_request(Client *user, int sender_id) {
     for (int i = 0; i < user->request_count; i++) {
         if (user->add_friend_requests[i] == sender_id) {
-            // Xóa yêu cầu kết bạn khỏi danh sách
             for (int j = i; j < user->request_count - 1; j++) {
                 user->add_friend_requests[j] = user->add_friend_requests[j+1];
             }
@@ -167,6 +167,8 @@ int remove_friend(Client* sender, Client* receiver){
                 sender->friends[j] = sender->friends[j + 1];
             }
             sender->friend_count--;
+            write_friend_list(sender);
+
             break; 
         }
     }
@@ -177,10 +179,9 @@ int remove_friend(Client* sender, Client* receiver){
                 receiver->friends[j] = receiver->friends[j + 1];
             }
             receiver->friend_count--;
-            return 1; 
+            write_friend_list(receiver);
+            return 1;
         }
     }
-    write_friend_list(sender);
-    write_friend_list(receiver);
     return 0; 
 }
