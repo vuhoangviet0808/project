@@ -23,17 +23,17 @@
 
 typedef struct {
     int socket;
-    char username[BUFFER_SIZE];  
-    char password[BUFFER_SIZE];  
-    int id;             
-    int is_online;    
+    char username[BUFFER_SIZE];
+    char password[BUFFER_SIZE];
+    int id;
+    int is_online;
 
 
-    int friends[MAX_FRIENDS];  
-    int friend_count;              
+    int friends[MAX_FRIENDS];
+    int friend_count;
 
     int add_friend_requests[MAX_REQUESTS];
-    int request_count;              
+    int request_count;
 } Client;
 
 extern Client clients[MAX_CLIENTS];

@@ -1,4 +1,5 @@
 #include "message_handler.h"
+#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -123,11 +124,11 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
     snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
 
     if (clients[receiver_id].is_online && clients[receiver_id].socket != -1) {
-        send(clients[receiver_id].socket, message_buffer, strlen(message_buffer), 0);
+        send_websocket_message(clients[receiver_id].socket, message_buffer, strlen(message_buffer), 0);
     } else {
         char response[BUFFER_SIZE];
         snprintf(response, BUFFER_SIZE, "User %s is not online.", clients[receiver_id].username);
-        send(clients[sender_id].socket, response, strlen(response), 0);
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
     }
 
     // Store the message
@@ -210,7 +211,7 @@ void retrieve_message(int sender_id, int receiver_id) {
     }
 
     printf("Response: %s\n", response);
-    send(clients[sender_id].socket, response, response_size, 0);
+    send_websocket_message(clients[sender_id].socket, response, response_size, 0);
 
     free(response);
     free(message_list);

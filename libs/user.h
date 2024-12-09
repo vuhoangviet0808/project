@@ -1,5 +1,5 @@
-#ifndef USER_MANAGER_H
-#define USER_MANAGER_H
+#ifndef USER_H
+#define USER_H
 
 //#include "stdbool.h"
 #include "common.h"

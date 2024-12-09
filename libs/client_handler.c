@@ -2,8 +2,55 @@
 #include "client_handler.h"
 #include "utils.h"
 #include "user_manager.h"
+#include "user.h"
 #include "message_handler.h"
 #include "common.h"
+#include <stdint.h>
+
+// Function to decode WebSocket frames
+int decode_websocket_message(char *buffer, char *out, size_t *out_len) {
+    uint8_t *p = (uint8_t *)buffer;
+    size_t payload_len;
+    size_t mask_offset = 0;
+    size_t i;
+
+    // First byte contains the FIN bit and opcode
+    uint8_t first_byte = p[0];
+    uint8_t opcode = first_byte & 0x0F; // Extract the opcode (lower 4 bits)
+
+    // Second byte contains the masking bit and payload length
+    uint8_t second_byte = p[1];
+    int mask = (second_byte & 0x80) >> 7; // Extract masking bit
+    payload_len = second_byte & 0x7F; // Extract payload length
+
+    // Check for extended payload length (if >= 126)
+    if (payload_len == 126) {
+        payload_len = (p[2] << 8) | p[3]; // 2 bytes for extended payload length
+        mask_offset = 4; // Move to the masking key
+    } else if (payload_len == 127) {
+        // For simplicity, we won't handle this case (8-byte length)
+        return -1; // Unsupported frame size
+    } else {
+        mask_offset = 2; // Move to the masking key
+    }
+
+    // Get the masking key if it's a masked frame
+    uint8_t masking_key[4] = {0};
+    if (mask) {
+        for (i = 0; i < 4; i++) {
+            masking_key[i] = p[mask_offset + i];
+        }
+    }
+
+    // Decode the payload
+    *out_len = payload_len;
+    for (i = 0; i < payload_len; i++) {
+        out[i] = mask ? (p[mask_offset + 4 + i] ^ masking_key[i % 4]) : p[mask_offset + 4 + i];
+    }
+    out[payload_len] = '\0'; // Null-terminate the output
+
+    return opcode; // Return the opcode of the message
+}
 
 
 void init_clients()
@@ -47,6 +94,8 @@ void *client_handler(void *socket_desc)
 {
     int client_sock = *(int *)socket_desc;
     char buffer[BUFFER_SIZE];
+    char decoded_message[BUFFER_SIZE];
+    size_t decoded_length;
     int user_id = -1;
     while (1)
     {
@@ -56,8 +105,16 @@ void *client_handler(void *socket_desc)
         if (read_size <= 0)
             break;
 
+        int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
+        if (opcode < 0) {
+            send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
+            continue;
+        }
+
+        printf("Debug: Decoded message: %s\n", decoded_message);
+
         char command[BUFFER_SIZE], payload[BUFFER_SIZE];
-        sscanf(buffer, "%s %[^\n]", command, payload);
+        sscanf(decoded_message, "%s %[^\n]", command, payload);
 
         printf("Debug: command %s, payload %s\n", command, payload);
 
@@ -70,7 +127,7 @@ void *client_handler(void *socket_desc)
 
             if (access(user_dir, F_OK) != -1)
             {
-                send(client_sock, "Account already exists.\n", strlen("Account already exists.\n"), 0);
+                send_websocket_message(client_sock, "Account already exists.\n", strlen("Account already exists.\n"), 0);
             }
             else
             {
@@ -88,12 +145,12 @@ void *client_handler(void *socket_desc)
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Registration successful");
-                    send(client_sock, response, strlen(response), 0);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
                     printf("%d %d %d %s %s\n", user_id,clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
                 }
                 else
                 {
-                    send(client_sock, "Registration failed.\n", strlen("Registration failed.\n"), 0);
+                    send_websocket_message(client_sock, "Registration failed.\n", strlen("Registration failed.\n"), 0);
                 }
             }
         }
@@ -106,7 +163,7 @@ void *client_handler(void *socket_desc)
 
             if (access(info_file, F_OK) == -1)
             {
-                send(client_sock, "Account does not exist.\n", strlen("Account does not exist.\n"), 0);
+                send_websocket_message(client_sock, "Account does not exist.\n", strlen("Account does not exist.\n"), 0);
             }
             else
             {
@@ -125,11 +182,11 @@ void *client_handler(void *socket_desc)
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Login successful");
-                    send(client_sock, response, strlen(response), 0);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
                 }
                 else
                 {
-                    send(client_sock, "Incorrect password.\n", strlen("Incorrect password.\n"), 0);
+                    send_websocket_message(client_sock, "Incorrect password.\n", strlen("Incorrect password.\n"), 0);
                 }
             }
         }
@@ -161,7 +218,7 @@ void *client_handler(void *socket_desc)
             {
                 char error_response[BUFFER_SIZE];
                 snprintf(error_response, BUFFER_SIZE, "User %s is not online or does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
+                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
             }
         }
         else if (strcmp(command, "addfr") == 0)
@@ -181,22 +238,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request sent successfully.\n", strlen("Friend request sent successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request sent successfully.\n", strlen("Friend request sent successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Friend request failed. Maybe already sent or full.\n", strlen("Friend request failed. Maybe already sent or full.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request failed. Maybe already sent or full.\n", strlen("Friend request failed. Maybe already sent or full.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         } else if (strcmp(command, "accept") == 0)
         {
@@ -214,22 +271,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request accepted successfully.\n", strlen("Friend request accepted successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request accepted successfully.\n", strlen("Friend request accepted successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Failed to accept friend request. Maybe list full.\n", strlen("Failed to accept friend request. Maybe list full.\n"), 0);
+                        send_websocket_message(client_sock, "Failed to accept friend request. Maybe list full.\n", strlen("Failed to accept friend request. Maybe list full.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         } else if (strcmp(command, "decline") == 0)
         {
@@ -245,16 +302,16 @@ void *client_handler(void *socket_desc)
 
                 if (result == 1)
                 {
-                    send(client_sock, "Friend request declined successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                    send_websocket_message(client_sock, "Friend request declined successfully.\n", strlen("Friend request declined successfully.\n"), 0);
                 }
                 else
                 {
-                    send(client_sock, "Failed to decline friend request. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                    send_websocket_message(client_sock, "Failed to decline friend request. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "listfr") == 0)
@@ -264,7 +321,7 @@ void *client_handler(void *socket_desc)
             char *friends_list = get_friends(clients[user_id]);
             pthread_mutex_unlock(&clients_mutex);
 
-            send(client_sock, friends_list, strlen(friends_list), 0);
+            send_websocket_message(client_sock, friends_list, strlen(friends_list), 0);
         }
         else if (strcmp(command, "cancel") == 0)
         {
@@ -282,22 +339,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request canceled successfully.\n", strlen("Friend request canceled successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request canceled successfully.\n", strlen("Friend request canceled successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Failed to cancel friend request. Request not found.\n", strlen("Failed to cancel friend request. Request not found.\n"), 0);
+                        send_websocket_message(client_sock, "Failed to cancel friend request. Request not found.\n", strlen("Failed to cancel friend request. Request not found.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         } else if (strcmp(command, "listreq") == 0)
         {
@@ -322,11 +379,11 @@ void *client_handler(void *socket_desc)
                         strcat(response, ", ");
                 }
                 strcat(response, "\n");
-                send(client_sock, response, strlen(response), 0);
+                send_websocket_message(client_sock, response, strlen(response), 0);
             }
             else
             {
-                send(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
+                send_websocket_message(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
             }
         } else if(strcmp(command, "remove") == 0){
             char username[BUFFER_SIZE];
@@ -341,16 +398,16 @@ void *client_handler(void *socket_desc)
 
                 if (result == 1)
                 {
-                    send(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                    send_websocket_message(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
                 }
                 else
                 {
-                    send(client_sock, "Failed to remove friend. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                    send_websocket_message(client_sock, "Failed to remove friend. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "chat_offline") == 0)
@@ -381,7 +438,7 @@ void *client_handler(void *socket_desc)
             {
                 char error_response[BUFFER_SIZE];
                 snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
+                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
             }
         }
         else if (strcmp(command, "retrieve") == 0)
@@ -410,12 +467,12 @@ void *client_handler(void *socket_desc)
             {
                 char error_response[BUFFER_SIZE];
                 snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
+                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
             }
         }
         else
         {
-            send(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);
+            send_websocket_message(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);
         }
     }
 
