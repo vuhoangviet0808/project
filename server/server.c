@@ -2,6 +2,7 @@
 #include "../libs/utils.h"
 #include "../libs/client_handler.h"
 #include "../libs/user_manager.h"
+#include "../libs/room_manager.h"
 
 Client clients[MAX_CLIENTS];
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -19,14 +20,26 @@ int main()
     struct sockaddr_in server_addr, client_addr;
     socklen_t addr_size;
 
-    mkdir(BASE_DIR, 0700); // Tạo thư mục lưu dữ liệu
+    mkdir(BASE_DIR, 0700);           // Tạo thư mục lưu dữ liệu người dùng
+    mkdir("server/room_data", 0700); // Tạo thư mục lưu dữ liệu phòng chat
     init_clients();
-    load_next_id();
 
+    init_rooms(); // Khởi tạo danh sách phòng
+    load_next_id();
+    load_next_room_id(); // Tải ID phòng tiếp theo
+    load_rooms();        // Tải danh sách phòng từ file
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock < 0)
     {
         log_message("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Add this block to set SO_REUSEADDR
+    int opt = 1;
+    if (setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+        log_message("setsockopt(SO_REUSEADDR) failed");
+        close(server_sock);
         exit(EXIT_FAILURE);
     }
 
@@ -65,6 +78,7 @@ int main()
             free(new_sock);
         }
     }
+    // 123
 
     if (client_sock < 0)
     {

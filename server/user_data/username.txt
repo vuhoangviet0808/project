@@ -4,6 +4,10 @@ user1
 viet
 vittt
 vu
+<<<<<<< HEAD
+hoang
+vietdz
+=======
 vuhoang
 
 vuviet
@@ -11,3 +15,4 @@ vu123
 vu12
 vietvu
 VIET
+>>>>>>> main
