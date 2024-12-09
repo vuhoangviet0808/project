@@ -110,13 +110,19 @@ void store_message(int sender_id, int receiver_id, const char *message) {
 }
 
 void send_private_message(int sender_id, int receiver_id, const char *message) {
-    if (!message) {
-        fprintf(stderr, "Null pointer error in send_private_message\n");
+    printf("%d %d", sender_id, receiver_id);
+    if (!message)
+    {
+        fprintf(stderr, "No message to send\n");
+        const char *response = "No message to send";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID in send_private_message\n");
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
@@ -131,29 +137,45 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
     }
 
+    log_message("User %s sent private message to %s", clients[sender_id].username, clients[receiver_id].username);
     // Store the message
     store_message(sender_id, receiver_id, message);
+    log_message("Stored private message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
+
 }
 
 void send_offline_message(int sender_id, int receiver_id, const char *message) {
     if (!message) {
-        fprintf(stderr, "Null pointer error in send_private_message\n");
+        fprintf(stderr, "No message to send\n");
+        const char *response = "No message to send";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID in send_private_message\n");
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
+
     char message_buffer[BUFFER_SIZE];
     snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
-
+    log_message("User %s sent offline message to %s", clients[sender_id].username, clients[receiver_id].username);
     // Store the message
     store_message(sender_id, receiver_id, message);
+    log_message("Stored offline message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
 }
 
 void retrieve_message(int sender_id, int receiver_id) {
+    if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
+        return;
+    }
+
     char sender_conversation_file[BUFFER_SIZE];
     char conversation_id[CONVERSATION_ID_LENGTH + 1] = {0};
     MessageList *message_list = malloc(sizeof(MessageList));

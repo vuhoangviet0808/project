@@ -105,16 +105,19 @@ void *client_handler(void *socket_desc)
         if (read_size <= 0)
             break;
 
+        // decode
         int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
         if (opcode < 0) {
             send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
             continue;
         }
 
-        printf("Debug: Decoded message: %s\n", decoded_message);
+        ///
 
         char command[BUFFER_SIZE], payload[BUFFER_SIZE];
+
         sscanf(decoded_message, "%s %[^\n]", command, payload);
+        // sscanf(buffer, "%s %[^\n]", command, payload);
 
         printf("Debug: command %s, payload %s\n", command, payload);
 
@@ -192,34 +195,11 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "chat") == 0)
         {
-            char recver[BUFFER_SIZE];
+            char receiver_id[BUFFER_SIZE];
             char message[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver, message);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (clients[i].is_online && strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                send_private_message(sender_id, receiver_id, message);
-                log_message("User %s sent message to %s", clients[sender_id].username, recver);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s is not online or does not exist.", recver);
-                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
-            }
+            int sender_id = user_id;
+            sscanf(payload, "%s %[^\n]", receiver_id, message);
+            send_private_message(sender_id, atoi(receiver_id), message);
         }
         else if (strcmp(command, "addfr") == 0)
         {
@@ -412,63 +392,18 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "chat_offline") == 0)
         {
-            char recver[BUFFER_SIZE];
+            char receiver_id[BUFFER_SIZE];
             char message[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver, message);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                send_offline_message(sender_id, receiver_id, message);
-                log_message("User %s sent offline message to %s", clients[sender_id].username, recver);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
-            }
+            int sender_id = user_id;
+            sscanf(payload, "%s %[^\n]", receiver_id, message);
+            send_offline_message(sender_id, atoi(receiver_id), message);
         }
         else if (strcmp(command, "retrieve") == 0)
         {
-            char recver[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                retrieve_message(sender_id, receiver_id);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send_websocket_message(client_sock, error_response, strlen(error_response), 0);
-            }
+            char receiver_id[BUFFER_SIZE];
+            int sender_id = user_id;
+            sscanf(payload, "%s %[^\n]", receiver_id);
+            retrieve_message(sender_id, atoi(receiver_id));
         }
         else
         {
