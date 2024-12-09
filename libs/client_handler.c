@@ -8,7 +8,8 @@
 #include <stdint.h>
 
 // Function to decode WebSocket frames
-int decode_websocket_message(char *buffer, char *out, size_t *out_len) {
+int decode_websocket_message(char *buffer, char *out, size_t *out_len)
+{
     uint8_t *p = (uint8_t *)buffer;
     size_t payload_len;
     size_t mask_offset = 0;
@@ -21,37 +22,44 @@ int decode_websocket_message(char *buffer, char *out, size_t *out_len) {
     // Second byte contains the masking bit and payload length
     uint8_t second_byte = p[1];
     int mask = (second_byte & 0x80) >> 7; // Extract masking bit
-    payload_len = second_byte & 0x7F; // Extract payload length
+    payload_len = second_byte & 0x7F;     // Extract payload length
 
     // Check for extended payload length (if >= 126)
-    if (payload_len == 126) {
+    if (payload_len == 126)
+    {
         payload_len = (p[2] << 8) | p[3]; // 2 bytes for extended payload length
-        mask_offset = 4; // Move to the masking key
-    } else if (payload_len == 127) {
+        mask_offset = 4;                  // Move to the masking key
+    }
+    else if (payload_len == 127)
+    {
         // For simplicity, we won't handle this case (8-byte length)
         return -1; // Unsupported frame size
-    } else {
+    }
+    else
+    {
         mask_offset = 2; // Move to the masking key
     }
 
     // Get the masking key if it's a masked frame
     uint8_t masking_key[4] = {0};
-    if (mask) {
-        for (i = 0; i < 4; i++) {
+    if (mask)
+    {
+        for (i = 0; i < 4; i++)
+        {
             masking_key[i] = p[mask_offset + i];
         }
     }
 
     // Decode the payload
     *out_len = payload_len;
-    for (i = 0; i < payload_len; i++) {
+    for (i = 0; i < payload_len; i++)
+    {
         out[i] = mask ? (p[mask_offset + 4 + i] ^ masking_key[i % 4]) : p[mask_offset + 4 + i];
     }
     out[payload_len] = '\0'; // Null-terminate the output
 
     return opcode; // Return the opcode of the message
 }
-
 
 void init_clients()
 {
@@ -62,15 +70,15 @@ void init_clients()
     }
 }
 
-int add_client(int client_sock, int id, const char *username, const char * password)
+int add_client(int client_sock, int id, const char *username, const char *password)
 {
     pthread_mutex_lock(&clients_mutex);
     if (id >= 0 && id < MAX_CLIENTS)
     {
         clients[id].id = id;
         clients[id].is_online = 1;
-        //strcpy(clients[id].password, password);
-        //strcpy(clients[id].username, username);
+        // strcpy(clients[id].password, password);
+        // strcpy(clients[id].username, username);
         clients[id].socket = client_sock;
         strncpy(clients[id].username, username, BUFFER_SIZE);
         strncpy(clients[id].password, password, BUFFER_SIZE);
@@ -106,7 +114,8 @@ void *client_handler(void *socket_desc)
             break;
 
         int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
-        if (opcode < 0) {
+        if (opcode < 0)
+        {
             send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
             continue;
         }
@@ -135,8 +144,8 @@ void *client_handler(void *socket_desc)
 
                 if (new_id != -1)
                 {
-                    //int id = add_client(client_sock, new_id, username, password);
-                    //printf("%d\n", id);
+                    // int id = add_client(client_sock, new_id, username, password);
+                    // printf("%d\n", id);
                     user_id = new_id;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
                     strncpy(clients[user_id].password, password, BUFFER_SIZE);
@@ -146,7 +155,7 @@ void *client_handler(void *socket_desc)
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "Registration successful");
                     send_websocket_message(client_sock, response, strlen(response), 0);
-                    printf("%d %d %d %s %s\n", user_id,clients[user_id].id, clients[user_id].is_online,clients[user_id].username, clients[user_id].password);
+                    printf("%d %d %d %s %s\n", user_id, clients[user_id].id, clients[user_id].is_online, clients[user_id].username, clients[user_id].password);
                 }
                 else
                 {
@@ -176,12 +185,12 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    //add_client(client_sock, user_id, username, password); // Thêm client vào mảng
+                    // add_client(client_sock, user_id, username, password); // Thêm client vào mảng
 
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
-                    snprintf(response, BUFFER_SIZE, "Login successful");
+                    snprintf(response, BUFFER_SIZE, "%d", user_id);
                     send_websocket_message(client_sock, response, strlen(response), 0);
                 }
                 else
@@ -255,7 +264,8 @@ void *client_handler(void *socket_desc)
             {
                 send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
-        } else if (strcmp(command, "accept") == 0)
+        }
+        else if (strcmp(command, "accept") == 0)
         {
             char username[BUFFER_SIZE];
             sscanf(payload, "%s", username);
@@ -264,7 +274,7 @@ void *client_handler(void *socket_desc)
                 int sender_id = atoi(username);
                 pthread_mutex_lock(&clients_mutex);
 
-                if (sender_id >= 0 && sender_id < MAX_CLIENTS )
+                if (sender_id >= 0 && sender_id < MAX_CLIENTS)
                 {
                     int result = accept_friend_request(&clients[user_id], &clients[sender_id]);
                     pthread_mutex_unlock(&clients_mutex);
@@ -288,7 +298,8 @@ void *client_handler(void *socket_desc)
             {
                 send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
-        } else if (strcmp(command, "decline") == 0)
+        }
+        else if (strcmp(command, "decline") == 0)
         {
             char username[BUFFER_SIZE];
             sscanf(payload, "%s", username);
@@ -356,7 +367,8 @@ void *client_handler(void *socket_desc)
             {
                 send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
-        } else if (strcmp(command, "listreq") == 0)
+        }
+        else if (strcmp(command, "listreq") == 0)
         {
             pthread_mutex_lock(&clients_mutex);
 
@@ -385,7 +397,9 @@ void *client_handler(void *socket_desc)
             {
                 send_websocket_message(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
             }
-        } else if(strcmp(command, "remove") == 0){
+        }
+        else if (strcmp(command, "remove") == 0)
+        {
             char username[BUFFER_SIZE];
             sscanf(payload, "%s", username);
             if (is_number(username))
@@ -482,5 +496,3 @@ void *client_handler(void *socket_desc)
     free(socket_desc);
     return NULL;
 }
-
-

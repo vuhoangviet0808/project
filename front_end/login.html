@@ -33,10 +33,20 @@
                 ws.onopen = () => {
                     document.getElementById("output").innerText = "Connected to WebSocket server";
                 };
-
+                function isNumeric(value) {
+                    return !isNaN(value) && !isNaN(parseFloat(value));
+                }
                 ws.onmessage = (event) => {
                     const output = document.getElementById("output");
                     output.innerText += "\nServer: " + event.data;
+                    if (isNumeric(event.data)) {
+                        localStorage.setItem("user_id", event.data);
+                        window.location.href = "chat.html";
+                    } else {
+                        alert(event.data);
+                    }
+
+
                 };
 
                 ws.onerror = (error) => {
@@ -45,11 +55,12 @@
 
                 ws.onclose = () => {
                     document.getElementById("output").innerText += "\nConnection closed.";
-                    setTimeout(setupWS, 1000); // Tự động kết nối lại sau 1 giây
+                    // setTimeout(setupWS, 1000); // Tự động kết nối lại sau 1 giây
                 };
             }
 
             setupWS(); // Khởi động WebSocket
+
 
             // Hàm gửi tin nhắn
             function sendMessage() {
@@ -76,6 +87,7 @@
                 sendMessage();
             });
         });
+
     </script>
 </head>
 
