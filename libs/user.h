@@ -27,5 +27,7 @@ char* get_friends(Client user);
 void get_friend_requests(Client *user, int request_list[], int *request_count);
 
 int remove_friend(Client* sender, Client* receiver);
+void write_friend_list(Client *client);
+void write_friend_request(Client *receiver);
 
 #endif // USER_MANAGER_H
