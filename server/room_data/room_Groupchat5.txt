@@ -1,6 +1,0 @@
-JOIN vinh 13
-ADD dat 14
-MESSAGE dat 14 hello toi la Dat
-LEAVE dat 14
-ADD dat 14
-REMOVE dat 14

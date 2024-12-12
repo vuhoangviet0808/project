@@ -15,4 +15,6 @@ int room_message(int room_id, int user_id, const char *message);
 int add_user_to_room(int room_id, int user_id);
 int leave_room(int room_id, int user_id);
 int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove);
+void get_user_rooms(int user_id, char *result);
+
 #endif

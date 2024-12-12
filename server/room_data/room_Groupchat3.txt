@@ -1,8 +1,0 @@
-
-JOIN  4
-JOIN vinh 13
-JOIN dat 14
-MESSAGE vinh 13 hello toi la vinh
-MESSAGE dat 14 toi la dat
-MESSAGE vinh 13 chao buoi sang
-MESSAGE vinh 13 ra khoi chan de

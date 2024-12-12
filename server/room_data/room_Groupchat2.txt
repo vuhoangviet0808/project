@@ -1,2 +1,1 @@
-JOIN  4
-MESSAGE  4 hello
+JOIN viet 2

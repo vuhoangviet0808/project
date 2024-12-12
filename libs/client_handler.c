@@ -539,6 +539,20 @@ void *client_handler(void *socket_desc)
                 send(client_sock, "Failed to remove user from room.\n", strlen("Failed to remove user from room.\n"), 0);
             }
         }
+        else if (strcmp(command, "list_rooms") == 0)
+        {
+            char user_rooms[BUFFER_SIZE];
+            get_user_rooms(user_id, user_rooms);
+
+            if (strlen(user_rooms) > 0)
+            {
+                send(client_sock, user_rooms, strlen(user_rooms), 0);
+            }
+            else
+            {
+                send(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
+            }
+        }
 
         else
         {

@@ -459,3 +459,28 @@ int room_message(int room_id, int sender_id, const char *message)
     pthread_mutex_unlock(&rooms_mutex);
     return 0; // Gửi thất bại
 }
+void get_user_rooms(int user_id, char *result)
+{
+    pthread_mutex_lock(&rooms_mutex);
+    result[0] = '\0'; // Xóa chuỗi trước khi thêm dữ liệu mới
+
+    for (int i = 0; i < MAX_ROOMS; i++)
+    {
+        if (rooms[i].id != -1)
+        { // Nếu phòng tồn tại
+            for (int j = 0; j < rooms[i].member_count; j++)
+            {
+                if (rooms[i].members[j] == user_id)
+                {
+                    // Thêm tên phòng vào kết quả
+                    char room_info[BUFFER_SIZE];
+                    snprintf(room_info, sizeof(room_info), "Room ID: %d, Name: %s\n", rooms[i].id, rooms[i].name);
+                    strncat(result, room_info, BUFFER_SIZE - strlen(result) - 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&rooms_mutex);
+}
