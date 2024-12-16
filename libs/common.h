@@ -30,6 +30,7 @@ typedef struct
     int id;
     int is_online;
 
+
     int friends[MAX_FRIENDS];
     int friend_count;
 

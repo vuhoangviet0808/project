@@ -1,4 +1,6 @@
 .vscode
 *.o
-# conversation_data
-# conversations
+conversation_data
+conversations
+Makefile
+.DS_Store
