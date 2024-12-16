@@ -41,6 +41,9 @@
                 ws.onmessage = (event) => {
                     const output = document.getElementById("output");
                     output.innerText += "\nServer: " + event.data;
+                    console.log(123);
+
+                    console.log("Received data:", event.data);
                     if (isNumeric(event.data)) {
                         localStorage.setItem("user_id", event.data);
                         window.location.href = "chat.html";
@@ -136,7 +139,7 @@
                         <button class="btn auth-form__controls-back btn-normal">
                             Trở lại
                         </button>
-                        <button class="btn btn-primary" onclick="sendMessage()">Đăng nhập</button>
+                        <button class="btn btn-primary">Đăng nhập</button>
                     </div>
                 </div>
             </form>

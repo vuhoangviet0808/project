@@ -62,7 +62,6 @@ int decode_websocket_message(char *buffer, char *out, size_t *out_len)
     return opcode; // Return the opcode of the message
 }
 
-
 void init_clients()
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -99,7 +98,6 @@ void remove_client(int id)
     }
     pthread_mutex_unlock(&clients_mutex);
 }
-
 
 void *client_handler(void *socket_desc)
 {
@@ -199,6 +197,7 @@ void *client_handler(void *socket_desc)
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "%d", user_id);
                     send_websocket_message(client_sock, response, strlen(response), 0);
+                    log_message("User %s login success.", username);
                 }
                 else
                 {
@@ -542,6 +541,20 @@ void *client_handler(void *socket_desc)
             else
             {
                 send(client_sock, "Failed to remove user from room.\n", strlen("Failed to remove user from room.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "list_rooms") == 0)
+        {
+            char user_rooms[BUFFER_SIZE];
+            get_user_rooms(user_id, user_rooms);
+
+            if (strlen(user_rooms) > 0)
+            {
+                send(client_sock, user_rooms, strlen(user_rooms), 0);
+            }
+            else
+            {
+                send(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
             }
         }
 

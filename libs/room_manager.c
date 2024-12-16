@@ -54,42 +54,24 @@ void load_rooms()
                         char command[BUFFER_SIZE], username[BUFFER_SIZE];
                         int user_id;
 
-                        if (sscanf(member_line, "%s %s %d", command, username, &user_id) == 3)
+                        // Khôi phục thông tin JOIN
+                        if (sscanf(member_line, "%s %s %d", command, username, &user_id) == 3 &&
+                            strcmp(command, "JOIN") == 0)
                         {
-                            if (strcmp(command, "JOIN") == 0 || strcmp(command, "ADD") == 0)
+                            // Kiểm tra và thêm vào danh sách thành viên
+                            int already_added = 0;
+                            for (int i = 0; i < rooms[room_id].member_count; i++)
                             {
-                                // Kiểm tra nếu thành viên đã tồn tại
-                                int already_added = 0;
-                                for (int i = 0; i < rooms[room_id].member_count; i++)
+                                if (rooms[room_id].members[i] == user_id)
                                 {
-                                    if (rooms[room_id].members[i] == user_id)
-                                    {
-                                        already_added = 1;
-                                        break;
-                                    }
-                                }
-
-                                // Nếu chưa có, thêm vào danh sách
-                                if (!already_added && rooms[room_id].member_count < MAX_CLIENTS)
-                                {
-                                    rooms[room_id].members[rooms[room_id].member_count++] = user_id;
+                                    already_added = 1;
+                                    break;
                                 }
                             }
-                            else if (strcmp(command, "LEAVE") == 0)
+
+                            if (!already_added && rooms[room_id].member_count < MAX_CLIENTS)
                             {
-                                // Xóa thành viên khỏi danh sách
-                                for (int i = 0; i < rooms[room_id].member_count; i++)
-                                {
-                                    if (rooms[room_id].members[i] == user_id)
-                                    {
-                                        for (int j = i; j < rooms[room_id].member_count - 1; j++)
-                                        {
-                                            rooms[room_id].members[j] = rooms[room_id].members[j + 1];
-                                        }
-                                        rooms[room_id].member_count--;
-                                        break;
-                                    }
-                                }
+                                rooms[room_id].members[rooms[room_id].member_count++] = user_id;
                             }
                         }
                     }
@@ -213,7 +195,7 @@ int join_room(int room_id, int user_id)
         FILE *file = fopen(room_file, "a");
         if (file)
         {
-            fprintf(file, "JOIN %s %d\n", clients[user_id].username, user_id);
+            fprintf(file, "JOIN %s %d\n", clients[user_id].username, user_id); // Ghi tên và ID
             fclose(file);
         }
         else
@@ -436,6 +418,7 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
 
 int room_message(int room_id, int sender_id, const char *message)
 {
+
     pthread_mutex_lock(&rooms_mutex);
 
     if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
@@ -475,4 +458,29 @@ int room_message(int room_id, int sender_id, const char *message)
 
     pthread_mutex_unlock(&rooms_mutex);
     return 0; // Gửi thất bại
+}
+void get_user_rooms(int user_id, char *result)
+{
+    pthread_mutex_lock(&rooms_mutex);
+    result[0] = '\0'; // Xóa chuỗi trước khi thêm dữ liệu mới
+
+    for (int i = 0; i < MAX_ROOMS; i++)
+    {
+        if (rooms[i].id != -1)
+        { // Nếu phòng tồn tại
+            for (int j = 0; j < rooms[i].member_count; j++)
+            {
+                if (rooms[i].members[j] == user_id)
+                {
+                    // Thêm tên phòng vào kết quả
+                    char room_info[BUFFER_SIZE];
+                    snprintf(room_info, sizeof(room_info), "Room ID: %d, Name: %s\n", rooms[i].id, rooms[i].name);
+                    strncat(result, room_info, BUFFER_SIZE - strlen(result) - 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&rooms_mutex);
 }
