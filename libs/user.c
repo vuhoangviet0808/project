@@ -185,3 +185,7 @@ int remove_friend(Client* sender, Client* receiver){
     }
     return 0; 
 }
+
+void logout(Client *user){
+    user->is_online = 0;
+}
