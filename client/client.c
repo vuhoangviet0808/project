@@ -10,6 +10,16 @@
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
+int is_number(const char *str){
+    if(str == NULL || *str == '\0'){
+        return 0;
+    }
+    char *endptr;
+    strtol(str, &endptr, 10);
+    return *endptr == '\0';
+}
+
+
 int main() {
     int sock;
     struct sockaddr_in server_addr;
@@ -57,9 +67,7 @@ int main() {
         }
 
         printf("%s\n", buffer);
-
-        // Check for successful login or registration response
-        if (strcmp(buffer, "Login successful") == 0 || strcmp(buffer, "Registration successful") == 0) {
+        if (is_number(buffer)) {
             isLoggedIn = 1;
         } else {
             printf("Login or registration failed. Try again.\n");

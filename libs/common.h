@@ -20,8 +20,10 @@
 #define MAX_CLIENTS 1000
 #define MAX_FRIENDS 100
 #define MAX_REQUESTS 100
+#define MAX_ROOMS 100
 
-typedef struct {
+typedef struct
+{
     int socket;
     char username[BUFFER_SIZE];
     char password[BUFFER_SIZE];
@@ -36,6 +38,18 @@ typedef struct {
     int request_count;
 } Client;
 
+typedef struct
+{
+    int id;
+    int creator_id; // ID của người tạo nhóm
+    char name[BUFFER_SIZE];
+    int members[MAX_CLIENTS];
+    int member_count;
+
+} ChatRoom;
+
+extern ChatRoom rooms[MAX_ROOMS];
+extern pthread_mutex_t rooms_mutex;
 extern Client clients[MAX_CLIENTS];
 extern pthread_mutex_t clients_mutex;
 
