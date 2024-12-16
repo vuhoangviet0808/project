@@ -9,7 +9,8 @@
 #include "room_manager.h"
 
 // Function to decode WebSocket frames
-int decode_websocket_message(char *buffer, char *out, size_t *out_len) {
+int decode_websocket_message(char *buffer, char *out, size_t *out_len)
+{
     uint8_t *p = (uint8_t *)buffer;
     size_t payload_len;
     size_t mask_offset = 0;
@@ -22,36 +23,46 @@ int decode_websocket_message(char *buffer, char *out, size_t *out_len) {
     // Second byte contains the masking bit and payload length
     uint8_t second_byte = p[1];
     int mask = (second_byte & 0x80) >> 7; // Extract masking bit
-    payload_len = second_byte & 0x7F; // Extract payload length
+    payload_len = second_byte & 0x7F;     // Extract payload length
 
     // Check for extended payload length (if >= 126)
-    if (payload_len == 126) {
+    if (payload_len == 126)
+    {
         payload_len = (p[2] << 8) | p[3]; // 2 bytes for extended payload length
-        mask_offset = 4; // Move to the masking key
-    } else if (payload_len == 127) {
+        mask_offset = 4;                  // Move to the masking key
+    }
+    else if (payload_len == 127)
+    {
         // For simplicity, we won't handle this case (8-byte length)
         return -1; // Unsupported frame size
-    } else {
+    }
+    else
+    {
         mask_offset = 2; // Move to the masking key
     }
 
     // Get the masking key if it's a masked frame
     uint8_t masking_key[4] = {0};
-    if (mask) {
-        for (i = 0; i < 4; i++) {
+    if (mask)
+    {
+        for (i = 0; i < 4; i++)
+        {
             masking_key[i] = p[mask_offset + i];
         }
     }
 
     // Decode the payload
     *out_len = payload_len;
-    for (i = 0; i < payload_len; i++) {
+    for (i = 0; i < payload_len; i++)
+    {
         out[i] = mask ? (p[mask_offset + 4 + i] ^ masking_key[i % 4]) : p[mask_offset + 4 + i];
     }
     out[payload_len] = '\0'; // Null-terminate the output
 
     return opcode; // Return the opcode of the message
 }
+
+
 void init_clients()
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -108,7 +119,8 @@ void *client_handler(void *socket_desc)
 
         // decode
         int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
-        if (opcode < 0) {
+        if (opcode < 0)
+        {
             send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
             continue;
         }
