@@ -36,6 +36,8 @@
                 function isNumeric(value) {
                     return !isNaN(value) && !isNaN(parseFloat(value));
                 }
+                console.log(123);
+
                 ws.onmessage = (event) => {
                     const output = document.getElementById("output");
                     output.innerText += "\nServer: " + event.data;
