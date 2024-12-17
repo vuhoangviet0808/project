@@ -131,7 +131,7 @@ int cancel_friend_request(Client *sender, Client *receiver) {
 }
 char* get_friends(Client user) {
     size_t buffer_size = user.friend_count * 4; 
-    char* listfr = (char*)malloc(buffer_size);
+    char* listfr = (char*)malloc(BUFFER_SIZE);
     if (!listfr) {
         perror("malloc failed");
         return NULL;
@@ -140,7 +140,8 @@ char* get_friends(Client user) {
 
     for (int i = 0; i < user.friend_count; i++) {
         char temp[12];
-        snprintf(temp, sizeof(temp), "%d", user.friends[i]); 
+        int friend_id = user.friends[i];
+        snprintf(temp, sizeof(temp), "%d:%s", friend_id, clients[friend_id].username); 
         strcat(listfr, temp);
         if (i < user.friend_count - 1) {
             strcat(listfr, " "); 
