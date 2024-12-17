@@ -32,25 +32,32 @@
 #define CMD_LIST_ROOMS      0x13  // Liệt kê các phòng chat đã tham gia
 #define CMD_LOGOUT          0x14
 
-
+#define STATUS_SUCCESS       0x00 // Thành công
+#define STATUS_ERROR         0x01 // Lỗi yêu cầu
+#define STATUS_NOT_FOUND     0x02 // Tài nguyên không tồn tại
+#define STATUS_SERVER_ERROR  0x03 // Lỗi hệ thống
 
 
 int decode_message(char *buffer, char *out_payload, size_t *out_len)
 {
 
     uint8_t command = buffer[0] & 0xFF;
-
-    // Payload bắt đầu từ byte thứ 2
     const char *payload = buffer + 1;
-
-    // Sao chép payload vào out_payload
     if (out_payload != NULL)
     {
         strncpy(out_payload, payload, *out_len - 1);
-        out_payload[*out_len - 1] = '\0'; // Đảm bảo null-terminate
+        out_payload[*out_len - 1] = '\0'; 
     }
     *out_len = strlen(payload);
     return command;
+}
+
+size_t encode_response(uint8_t status, const char *message, char *out_buffer) {
+    out_buffer[0] = status;
+    size_t message_length = strlen(message);
+    strncpy(out_buffer + 1, message, BUFFER_SIZE - 1);  
+    out_buffer[message_length + 1] = '\0'; 
+    return message_length + 1;
 }
 
 
@@ -102,21 +109,15 @@ void *client_handler(void *socket_desc)
     while (1)
     {
         memset(buffer, 0, BUFFER_SIZE);
-
-        // Nhận dữ liệu từ client
         int read_size = recv(client_sock, buffer, BUFFER_SIZE, 0);
         if (read_size <= 0)
             break;
-
-        // Giải mã WebSocket message để lấy opcode và payload
         int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
         if (opcode < 0)
         {
             send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
             continue;
         }
-
-        // Xử lý từng opcode bằng switch-case
         switch (opcode)
         {
         case CMD_REGISTER:
