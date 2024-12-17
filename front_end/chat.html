@@ -8,8 +8,83 @@
     <link rel="stylesheet" href="./css/base.css">
     <link rel="stylesheet" href="./css/chat.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <script src="./js/chat.js"></script>
+    <!-- <script src="./js/chat.js" defer></script> -->
 </head>
+
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const chatHeader = document.querySelector(".chat-header h3");
+        const chatBody = document.querySelector(".chat-body");
+        const chatList = document.querySelector(".chat-list");
+        const createRoomInput = document.getElementById("create-room-input");
+        const joinRoomInput = document.getElementById("join-room-input");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        let currentRoom = null;
+        // Kết nối WebSocket
+        const socket = new WebSocket('ws://localhost:8080');
+        socket.onopen = () => {
+            console.log("WebSocket connected.");
+            const userId = sessionStorage.getItem("user_id");
+            if (userId) {
+                // Gửi yêu cầu danh sách phòng kèm user_id
+                socket.send(`list_rooms ${userId}`);
+            } else {
+                console.error("User ID not found in localStorage.");
+            }
+        };
+
+        socket.onmessage = (event) => {
+            const response = event.data;
+            console.log(response);
+            // Hiển thị danh sách phòng chat
+            chatList.innerHTML = ""; // Xóa danh sách cũ
+            const rooms = response.split("\n").filter(line => line.trim() !== "");
+
+            rooms.forEach((room) => {
+                const chatItem = document.createElement("div");
+                chatItem.className = "chat-item";
+
+                chatItem.innerHTML = `
+                <img src="https://via.placeholder.com/50" alt="Room Avatar">
+                <div class="chat-info">
+                    <h4>${room}</h4>
+                    <span class="status online"></span>
+                </div>
+            `;
+                chatList.appendChild(chatItem);
+            });
+
+        };
+        //Tạo room
+        createRoomBtn.addEventListener("click", () => {
+            const roomName = createRoomInput.value.trim();
+            const userId = sessionStorage.getItem("user_id");
+            if (roomName && userId) {
+                socket.send(`create_room ${roomName} ${userId}`);
+                createRoomInput.value = ""; // Xóa input sau khi gửi
+            } else {
+                alert("Please enter a room name and make sure you're logged in.");
+            }
+        });
+
+        // Join Room theo ID
+        joinRoomBtn.addEventListener("click", () => {
+            const roomId = joinRoomInput.value.trim();
+            const userId = sessionStorage.getItem("user_id");
+            if (roomId && userId) {
+                socket.send(`join_room ${roomId} ${userId}`);
+                joinRoomInput.value = ""; // Xóa input sau khi gửi
+            } else {
+                alert("Please enter a valid room ID and make sure you're logged in.");
+            }
+        });
+
+        socket.onerror = (error) => console.error("WebSocket error:", error);
+    });
+
+
+</script>
 
 <body>
     <div class="messenger">
@@ -19,42 +94,36 @@
                 <h1>Cuong</h1> <br />
                 <button class="add-friend-btn"><i class="fas fa-user-plus"></i></button>
             </div>
-            <div class="chat-list">
-                <div class="chat-item active">
-                    <img src="https://via.placeholder.com/50" alt="Avatar">
-                    <div class="chat-info">
-                        <h4>Vũ Hoàng Việt</h4>
-                        <span class="status online"></span>
-                    </div>
+            <div class="room-actions">
+                <!-- Input và nút Tạo Room -->
+                <div>
+                    <input type="text" id="create-room-input" placeholder="Enter Room Name">
+                    <button id="create-room-btn">Create Room</button>
                 </div>
-                <div class="chat-item">
-                    <img src="https://via.placeholder.com/50" alt="Avatar">
-                    <div class="chat-info">
-                        <h4>Hà Tuấn Hoàng</h4>
-                        <span class="status offline"></span>
-                    </div>
+                <!-- Input và nút Join Room -->
+                <div>
+                    <input type="number" id="join-room-input" placeholder="Enter Room ID">
+                    <button id="join-room-btn">Join Room</button>
                 </div>
+            </div>
+            <!-- Danh sách phòng chat -->
+            <div class="chat-list" id="room-list">
+                <!-- Danh sách phòng sẽ được thêm động từ JavaScript -->
             </div>
         </div>
 
         <!-- Chat Section -->
         <div class="chat">
             <div class="chat-header">
-                <h3>Vũ Hoàng Việt</h3>
-                <div class="chat-actions">
-                </div>
+                <h3 id="room-name">Room Name</h3>
             </div>
-            <div class="chat-body">
-                <div class="message received">
-                    <p>hi</p>
-                </div>
-                <div class="message sent">
-                    <p>hello</p>
-                </div>
+
+            <div class="chat-body" id="chat-body">
+                <!-- Tin nhắn sẽ được thêm động từ JavaScript -->
             </div>
             <div class="chat-footer">
-                <textarea placeholder="Type a message..."></textarea>
-                <button class="send-btn"><i class="fas fa-paper-plane"></i></button>
+                <textarea placeholder="Type a message..." id="message-input"></textarea>
+                <button class="send-btn" id="send-btn"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>

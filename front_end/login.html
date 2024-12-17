@@ -43,7 +43,7 @@
 
                     console.log("Received data:", event.data);
                     if (isNumeric(event.data)) {
-                        localStorage.setItem("user_id", event.data);
+                        sessionStorage.setItem("user_id", event.data);
                         window.location.href = "chat.html";
                     } else {
                         alert(event.data);

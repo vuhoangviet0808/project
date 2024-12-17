@@ -11,10 +11,15 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <script src="./js/signup.js"></script>
+    <!-- <script src="./js/signup.js"></script> -->
     <script>
-        document.getElementById("signup-form").addEventListener("submit", (e) => {
-            e.preventDefault();
+        document.addEventListener("DOMContentLoaded", () => {
+
+            const switchBtn = document.querySelector(".authen-form__switach-btn");
+            switchBtn.addEventListener("click", () => {
+                window.location.href = "login.html";
+            });
+            // e.preventDefault();
 
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
@@ -53,6 +58,7 @@
                 <div class="header-logo">
                 </div>
                 <span>Đăng Ký</span>
+                <span id="output"></span>
             </div>
         </div>
     </header>
@@ -63,7 +69,7 @@
                     <div class="auth-form__header">
                         <h3 class="authen-form__heading">Đăng ký</h3>
                         <span class="authen-form__switach-btn">Đăng nhập</span>
-                        <span id="output"></span>
+
                     </div>
                     <div class="auth-form__form">
                         <div class="auth-form__group">

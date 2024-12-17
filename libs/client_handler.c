@@ -424,36 +424,47 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "create_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = create_room(username, user_id);
+            char room_name[BUFFER_SIZE];
+            int creator_id;
+            sscanf(payload, "%s %d", room_name, &creator_id);
+
+            // Tạo room
+            int room_id = create_room(room_name, creator_id);
             if (room_id != -1)
             {
-                char response[BUFFER_SIZE];
-                snprintf(response, BUFFER_SIZE, "Room created with ID %d\n", room_id);
-                send(client_sock, response, strlen(response), 0);
+                // Thêm người tạo vào phòng (join_room)
+                if (join_room(room_id, creator_id))
+                {
+                    char response[BUFFER_SIZE];
+                    snprintf(response, sizeof(response), "Room created and joined successfully with ID: %d", room_id);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
+                }
+                else
+                {
+                    send_websocket_message(client_sock, "Failed to join room after creation.",
+                                           strlen("Failed to join room after creation."), 0);
+                }
             }
             else
             {
-                send(client_sock, "Failed to create room 123.\n", strlen("Failed to create room 123.\n"), 0);
+                send_websocket_message(client_sock, "Failed to create room.", strlen("Failed to create room."), 0);
             }
         }
         else if (strcmp(command, "join_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = atoi(username); // Tìm room_id từ tên
-            if (room_id == -1)
+            int room_id, user_id;
+            sscanf(payload, "%d %d", &room_id, &user_id);
+
+            if (join_room(room_id, user_id))
             {
-                send(client_sock, "Room does not exist.\n", strlen("Room does not exist.\n"), 0);
-            }
-            else if (join_room(room_id, user_id))
-            {
-                send(client_sock, "Joined room successfully.\n", strlen("Joined room successfully.\n"), 0);
+                char response[BUFFER_SIZE];
+                snprintf(response, sizeof(response), "Joined room successfully with ID: %d", room_id);
+                send_websocket_message(client_sock, response, strlen(response), 0);
             }
             else
             {
-                send(client_sock, "Failed to join room.\n", strlen("Failed to join room.\n"), 0);
+                send_websocket_message(client_sock, "Failed to join room. Room does not exist or you are already a member.",
+                                       strlen("Failed to join room. Room does not exist or you are already a member."), 0);
             }
         }
         else if (strcmp(command, "room_message") == 0)
@@ -545,16 +556,20 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "list_rooms") == 0)
         {
+            int requested_user_id;
+            sscanf(payload, "%d", &requested_user_id); // Lấy user_id từ payload
+
             char user_rooms[BUFFER_SIZE];
-            get_user_rooms(user_id, user_rooms);
+            get_user_rooms(requested_user_id, user_rooms);
 
             if (strlen(user_rooms) > 0)
             {
-                send(client_sock, user_rooms, strlen(user_rooms), 0);
+                char response[BUFFER_SIZE];
+                send_websocket_message(client_sock, user_rooms, strlen(user_rooms), 0);
             }
             else
             {
-                send(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
+                send_websocket_message(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
             }
         }
 
