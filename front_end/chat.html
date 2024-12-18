@@ -16,6 +16,7 @@
             const createRoomBtn = document.getElementById("create-room-btn");
             const joinRoomBtn = document.getElementById("join-room-btn");
             const friendList = document.getElementById("friend-list");
+            let selectedFriendUsername = null;
 
             const socket = new WebSocket('ws://localhost:8080');
 
@@ -46,7 +47,7 @@
                             const [_, timestamp, user, text] = match;
 
                             const messageElement = document.createElement("div");
-                            messageElement.className = user === "user1" ? "message sent" : "message received";
+                            messageElement.className = user === selectedFriendUsername ? "message received" : "message sent";
 
                             messageElement.innerHTML = `
                                 <p><strong>${user}</strong>: ${text}</p>
@@ -71,11 +72,13 @@
                             friendElement.className = "chat-item";
                             friendElement.textContent = username;
                             friendElement.dataset.friendId = id;
+                            friendElement.dataset.friendUsername = username;
                             friendList.appendChild(friendElement);
 
                             friendElement.addEventListener("click", () => {
                                 const userId = localStorage.getItem("user_id");
                                 if (userId) {
+                                    selectedFriendUsername = username;
                                     socket.send(`retrieve ${userId} ${id}`);
                                 }
                             });
