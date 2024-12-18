@@ -416,49 +416,93 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
     return 1; // Xóa thành công
 }
 
+// int room_message(int room_id, int sender_id, const char *message)
+// {
+
+//     pthread_mutex_lock(&rooms_mutex);
+
+//     if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
+//     {
+//         // Lưu tin nhắn vào file room_<name>.txt
+//         char room_file[BUFFER_SIZE];
+//         snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
+//         FILE *file = fopen(room_file, "a");
+//         if (file)
+//         {
+//             fprintf(file, "MESSAGE %s %d %s\n", clients[sender_id].username, sender_id, message);
+//             fclose(file);
+//         }
+//         else
+//         {
+//             perror("Failed to open room file");
+//             pthread_mutex_unlock(&rooms_mutex);
+//             return 0; // Lỗi ghi file
+//         }
+
+//         // Gửi tin nhắn đến các thành viên trong phòng
+//         for (int i = 0; i < rooms[room_id].member_count; i++)
+//         {
+//             int member_id = rooms[room_id].members[i];
+//             // if (clients[member_id].is_online)
+//             // {
+//             char full_message[BUFFER_SIZE];
+//             snprintf(full_message, sizeof(full_message), "Room %d [%s]: %s\n",
+//                      room_id, clients[sender_id].username, message);
+//             send(clients[member_id].socket, full_message, strlen(full_message), 0);
+//             // }
+//         }
+
+//         pthread_mutex_unlock(&rooms_mutex);
+//         return 1; // Gửi thành công
+//     }
+
+//     pthread_mutex_unlock(&rooms_mutex);
+//     return 0; // Gửi thất bại
+// }
 int room_message(int room_id, int sender_id, const char *message)
 {
-
     pthread_mutex_lock(&rooms_mutex);
 
     if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
     {
-        // Lưu tin nhắn vào file room_<name>.txt
+        // printf("test: User ID %d, Username: '%s'\n", sender_id, clients[sender_id].username);
         char room_file[BUFFER_SIZE];
         snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
+
         FILE *file = fopen(room_file, "a");
         if (file)
         {
-            fprintf(file, "MESSAGE %s %d %s\n", clients[sender_id].username, sender_id, message);
+            // Kiểm tra username hợp lệ
+            const char *username = clients[sender_id].username[0] ? clients[sender_id].username : "unknown";
+
+            fprintf(file, "MESSAGE %s %s\n", username, message);
             fclose(file);
         }
         else
         {
             perror("Failed to open room file");
             pthread_mutex_unlock(&rooms_mutex);
-            return 0; // Lỗi ghi file
+            return 0;
         }
 
         // Gửi tin nhắn đến các thành viên trong phòng
         for (int i = 0; i < rooms[room_id].member_count; i++)
         {
             int member_id = rooms[room_id].members[i];
-            // if (clients[member_id].is_online)
-            // {
             char full_message[BUFFER_SIZE];
-            snprintf(full_message, sizeof(full_message), "Room %d [%s]: %s\n",
+            snprintf(full_message, sizeof(full_message), "Room %d [%s]: %s",
                      room_id, clients[sender_id].username, message);
             send(clients[member_id].socket, full_message, strlen(full_message), 0);
-            // }
         }
 
         pthread_mutex_unlock(&rooms_mutex);
-        return 1; // Gửi thành công
+        return 1;
     }
 
     pthread_mutex_unlock(&rooms_mutex);
-    return 0; // Gửi thất bại
+    return 0;
 }
+
 void get_user_rooms(int user_id, char *result)
 {
 

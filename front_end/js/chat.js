@@ -14,7 +14,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.onopen = () => {
         console.log("WebSocket connected.");
-        socket.send("list_rooms"); // Gửi yêu cầu lấy danh sách phòng chat
+        const username = sessionStorage.getItem("username");
+        if (username) {
+            usernameDisplay.textContent = username; // Hiển thị tên người dùng
+            socket.send(`list_rooms ${sessionStorage.getItem("user_id")}`); // hiển thị danh sách phòng chat
+        }
     };
 
     socket.onmessage = (event) => {
@@ -23,6 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Hiển thị danh sách phòng chat
         chatList.innerHTML = ""; // Xóa danh sách cũ
         const rooms = response.split("\n").filter(line => line.trim() !== "");
+        // console.log(rooms);
 
         rooms.forEach((room) => {
             const chatItem = document.createElement("div");

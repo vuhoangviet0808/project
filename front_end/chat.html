@@ -13,49 +13,92 @@
 
 <script>
     document.addEventListener("DOMContentLoaded", () => {
-        const chatHeader = document.querySelector(".chat-header h3");
         const chatBody = document.querySelector(".chat-body");
         const chatList = document.querySelector(".chat-list");
         const createRoomInput = document.getElementById("create-room-input");
         const joinRoomInput = document.getElementById("join-room-input");
         const createRoomBtn = document.getElementById("create-room-btn");
         const joinRoomBtn = document.getElementById("join-room-btn");
+        const usernameDisplay = document.querySelector(".sidebar-header h1");
+        const chatHeader = document.getElementById("room-name");
+
+        const sendBtn = document.getElementById("send-btn"); //chat room
+        const messageInput = document.getElementById("message-input");
         let currentRoom = null;
         // Kết nối WebSocket
         const socket = new WebSocket('ws://localhost:8080');
         socket.onopen = () => {
             console.log("WebSocket connected.");
             const userId = sessionStorage.getItem("user_id");
-            if (userId) {
-                // Gửi yêu cầu danh sách phòng kèm user_id
-                socket.send(`list_rooms ${userId}`);
+            const username = sessionStorage.getItem("user_name");
+            if (userId && username) {
+                console.log(`User: ${username}, ID: ${userId}`);
+                usernameDisplay.textContent = username; // Hiển thị tên người dùng
+                socket.send(`list_rooms ${userId}`); // Yêu cầu danh sách phòng
             } else {
-                console.error("User ID not found in localStorage.");
+                alert("User session not found. Please log in again.");
+                window.location.href = "login.html";
             }
+
         };
+        function setupRoomClickEvents() {      //xet su kien click vao room
+            const roomItems = document.querySelectorAll(".chat-item");
+            roomItems.forEach(item => {
+                item.addEventListener("click", () => {
+                    const roomName = item.querySelector("h4").innerText; // Lấy tên phòng từ h4
+                    chatHeader.textContent = roomName; // Đổi tên phòng ở header
+                    // Gửi yêu cầu lấy tin nhắn của phòng
+                    const userId = sessionStorage.getItem("user_id");
+                    // socket.send(`load_room_messages ${roomName} ${userId}`);
+                });
+            });
+        }
 
         socket.onmessage = (event) => {
             const response = event.data;
             console.log(response);
-            // Hiển thị danh sách phòng chat
-            chatList.innerHTML = ""; // Xóa danh sách cũ
-            const rooms = response.split("\n").filter(line => line.trim() !== "");
 
-            rooms.forEach((room) => {
-                const chatItem = document.createElement("div");
-                chatItem.className = "chat-item";
+            if (response === "room_message_success") {
+                console.log("Message sent successfully.");
+                const userId = sessionStorage.getItem("user_id");
+                // socket.send(`list_rooms ${userId}`); // Gửi yêu cầu cập nhật danh sách phòng
+            }
+            else if (response === "room_not_found") {
+                alert("Room not found.");
+            }
+            else if (response.startsWith("room_messages")) {
+                console.log(response);
 
-                chatItem.innerHTML = `
+                const messages = response.split("room_messages ")[1]; // Lấy nội dung tin nhắn
+                messages.split("\n").forEach(msg => {
+                    if (msg.trim()) {
+                        const messageElement = document.createElement("div");
+                        messageElement.textContent = msg; // Hiển thị từng tin nhắn
+                        chatBody.appendChild(messageElement);
+                    }
+                });
+            } else {
+                // Xử lý hiển thị danh sách phòng
+                chatList.innerHTML = "";
+                const rooms = response.split("\n").filter(line => line.trim() !== "");
+
+                rooms.forEach(room => {
+                    const roomElement = document.createElement("div");
+                    roomElement.className = "chat-item";
+                    roomElement.innerHTML = `
                 <img src="https://via.placeholder.com/50" alt="Room Avatar">
                 <div class="chat-info">
                     <h4>${room}</h4>
                     <span class="status online"></span>
                 </div>
             `;
-                chatList.appendChild(chatItem);
-            });
+                    chatList.appendChild(roomElement);
+                });
 
+                setupRoomClickEvents(); // Gắn lại event listener
+            }
         };
+        // setupRoomClickEvents();
         //Tạo room
         createRoomBtn.addEventListener("click", () => {
             const roomName = createRoomInput.value.trim();
@@ -77,6 +120,18 @@
                 joinRoomInput.value = ""; // Xóa input sau khi gửi
             } else {
                 alert("Please enter a valid room ID and make sure you're logged in.");
+            }
+        });
+
+        //nhắn tin room
+        sendBtn.addEventListener("click", () => {
+            const userId = sessionStorage.getItem("user_id");
+            const roomName = chatHeader.textContent.trim(); // Tên phòng hiện tại
+            const message = messageInput.value.trim();
+            if (message && roomName) {
+
+                socket.send(`send_room_message ${roomName} ${userId} ${message} `);
+                messageInput.value = ""; // Xóa ô nhập tin nhắn
             }
         });
 

@@ -1,3 +1,0 @@
-JOIN cuong 1
-JOIN viet 2
-MESSAGE viet 2 hello2

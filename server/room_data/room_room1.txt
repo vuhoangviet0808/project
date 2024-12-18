@@ -1,0 +1,7 @@
+JOIN cuong 1
+JOIN viet 2
+MESSAGE cuong hi
+MESSAGE cuong 1234
+MESSAGE cuong xin
+MESSAGE cuong halo
+MESSAGE viet xin chao minh la viet 

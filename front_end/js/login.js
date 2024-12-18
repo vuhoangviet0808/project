@@ -28,10 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
         ws.onclose = () => {
             document.getElementById('output').innerText += '\nConnection closed.';
         };
-        // function sendMessage() {
-        //     const message = `login${username} ${password}`;
-        //     ws.send(message);
-        // }
+        function sendMessage() {
+            const message = `login${username} ${password}`;
+            ws.send(message);
+        }
 
     });
 });

@@ -1,2 +1,5 @@
-JOIN  1
-JOIN  2
+JOIN cuong 1
+MESSAGE cuong 123124
+MESSAGE cuong 1234
+MESSAGE cuong 1234
+MESSAGE cuong hello xin chao 

@@ -173,6 +173,7 @@ void *client_handler(void *socket_desc)
             char info_file[BUFFER_SIZE];
             char username[BUFFER_SIZE], password[BUFFER_SIZE];
             sscanf(payload, "%s %s", username, password);
+
             snprintf(info_file, sizeof(info_file), "%s/%s/info.txt", BASE_DIR, username);
 
             if (access(info_file, F_OK) == -1)
@@ -190,14 +191,12 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    // add_client(client_sock, user_id, username, password); // Thêm client vào mảng
-
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
+                    strncpy(clients[user_id].username, username, BUFFER_SIZE);
                     char response[BUFFER_SIZE];
-                    snprintf(response, BUFFER_SIZE, "%d", user_id);
+                    snprintf(response, BUFFER_SIZE, "%d %s", user_id, username);
                     send_websocket_message(client_sock, response, strlen(response), 0);
-                    log_message("User %s login success.", username);
                 }
                 else
                 {
@@ -467,36 +466,95 @@ void *client_handler(void *socket_desc)
                                        strlen("Failed to join room. Room does not exist or you are already a member."), 0);
             }
         }
-        else if (strcmp(command, "room_message") == 0)
-        {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id;
-            char message[BUFFER_SIZE];
+        // else if (strcmp(command, "room_message") == 0)
+        // {
+        //     char username[BUFFER_SIZE], password[BUFFER_SIZE];
+        //     sscanf(payload, "%s %s", username, password);
+        //     int room_id;
+        //     char message[BUFFER_SIZE];
 
-            // Phân tích cú pháp để lấy room_id và phần còn lại là tin nhắn
-            char *token = strtok(buffer + strlen(command) + 1, " ");
+        //     // Phân tích cú pháp để lấy room_id và phần còn lại là tin nhắn
+        //     char *token = strtok(buffer + strlen(command) + 1, " ");
+        //     if (token)
+        //     {
+        //         room_id = atoi(token);
+        //         char *message_start = buffer + strlen(command) + strlen(token) + 2;
+        //         strncpy(message, message_start, BUFFER_SIZE - 1);
+        //         message[BUFFER_SIZE - 1] = '\0';
+
+        //         if (room_message(room_id, user_id, message))
+        //         {
+        //             send(client_sock, "Message sent to room.\n", strlen("Message sent to room.\n"), 0);
+        //         }
+        //         else
+        //         {
+        //             send(client_sock, "Failed to send message to room.\n", strlen("Failed to send message to room.\n"), 0);
+        //         }
+        //     }
+        //     else
+        //     {
+        //         send(client_sock, "Invalid room_message format.\n", strlen("Invalid room_message format.\n"), 0);
+        //     }
+        // }
+        if (strcmp(command, "send_room_message") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            char message[BUFFER_SIZE];
+            int user_id;
+
+            // Tách room_name và user_id
+            char *token = strtok(payload, " "); // Lấy room_name
             if (token)
             {
-                room_id = atoi(token);
-                char *message_start = buffer + strlen(command) + strlen(token) + 2;
-                strncpy(message, message_start, BUFFER_SIZE - 1);
-                message[BUFFER_SIZE - 1] = '\0';
+                strncpy(room_name, token, BUFFER_SIZE);
+                room_name[BUFFER_SIZE - 1] = '\0'; // Đảm bảo kết thúc chuỗi
 
-                if (room_message(room_id, user_id, message))
+                token = strtok(NULL, " "); // Lấy user_id
+                if (token)
                 {
-                    send(client_sock, "Message sent to room.\n", strlen("Message sent to room.\n"), 0);
+                    user_id = atoi(token);
+
+                    // Phần còn lại của payload là message
+                    char *message_start = payload + strlen(room_name) + 1 + strlen(token) + 1;
+                    strncpy(message, message_start, BUFFER_SIZE);
+                    message[BUFFER_SIZE - 1] = '\0'; // Đảm bảo kết thúc chuỗi
+
+                    // Debug để kiểm tra dữ liệu
+                    printf("Debug: Room Name: %s, User ID: %d, Message: %s\n", room_name, user_id, message);
+
+                    // Tiếp tục xử lý gửi tin nhắn
+                    pthread_mutex_lock(&rooms_mutex);
+                    int room_id = -1;
+
+                    for (int i = 0; i < MAX_ROOMS; i++)
+                    {
+                        if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                        {
+                            room_id = i;
+                            break;
+                        }
+                    }
+                    pthread_mutex_unlock(&rooms_mutex);
+
+                    if (room_id != -1)
+                    {
+                        if (room_message(room_id, user_id, message))
+                        {
+                            send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
+                        }
+                        else
+                        {
+                            send_websocket_message(client_sock, "error_sending_message", strlen("error_sending_message"), 0);
+                        }
+                    }
+                    else
+                    {
+                        send_websocket_message(client_sock, "room_not_found", strlen("room_not_found"), 0);
+                    }
                 }
-                else
-                {
-                    send(client_sock, "Failed to send message to room.\n", strlen("Failed to send message to room.\n"), 0);
-                }
-            }
-            else
-            {
-                send(client_sock, "Invalid room_message format.\n", strlen("Invalid room_message format.\n"), 0);
             }
         }
+
         else if (strcmp(command, "add_to_room") == 0)
         {
             char username[BUFFER_SIZE], password[BUFFER_SIZE];
@@ -559,7 +617,7 @@ void *client_handler(void *socket_desc)
             int requested_user_id;
             sscanf(payload, "%d", &requested_user_id); // Lấy user_id từ payload
 
-            char user_rooms[BUFFER_SIZE];
+            char user_rooms[BUFFER_SIZE] = "";
             get_user_rooms(requested_user_id, user_rooms);
 
             if (strlen(user_rooms) > 0)
@@ -570,6 +628,80 @@ void *client_handler(void *socket_desc)
             else
             {
                 send_websocket_message(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "select_room") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            sscanf(payload, "%s", room_name);
+
+            // Tìm room trong danh sách
+            pthread_mutex_lock(&rooms_mutex);
+            int found = 0;
+            for (int i = 0; i < MAX_ROOMS; i++)
+            {
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    found = 1;
+                    char room_file[BUFFER_SIZE];
+                    snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", room_name);
+
+                    FILE *file = fopen(room_file, "r");
+                    if (file)
+                    {
+                        char line[BUFFER_SIZE];
+                        while (fgets(line, sizeof(line), file))
+                        {
+                            send_websocket_message(client_sock, line, strlen(line), 0);
+                        }
+                        fclose(file);
+                    }
+                    else
+                    {
+                        send_websocket_message(client_sock, "Room data not found.", strlen("Room data not found."), 0);
+                    }
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
+
+            if (!found)
+            {
+                send_websocket_message(client_sock, "Room does not exist.", strlen("Room does not exist."), 0);
+            }
+        }
+        else if (strcmp(command, "load_room_messages") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            int user_id;
+            sscanf(payload, "%s %d", room_name, &user_id);
+
+            char room_file[BUFFER_SIZE];
+            snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", room_name);
+
+            FILE *file = fopen(room_file, "r");
+            if (file)
+            {
+                char line[BUFFER_SIZE];
+                char all_messages[BUFFER_SIZE * 10] = ""; // Chứa toàn bộ tin nhắn phòng
+
+                while (fgets(line, sizeof(line), file))
+                {
+                    if (strncmp(line, "MESSAGE", 7) == 0)
+                    {
+                        strcat(all_messages, line + 8); // Lấy tin nhắn (bỏ "MESSAGE ")
+                        strcat(all_messages, "\n");
+                    }
+                }
+                fclose(file);
+
+                char response[BUFFER_SIZE * 10];
+                snprintf(response, sizeof(response), "room_messages %s", all_messages);
+                send_websocket_message(client_sock, response, strlen(response), 0);
+            }
+            else
+            {
+                send_websocket_message(client_sock, "room_messages No messages found.", strlen("room_messages No messages found."), 0);
             }
         }
 

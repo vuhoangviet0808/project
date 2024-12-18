@@ -150,9 +150,25 @@ textarea {
 
 .status.online {
     background-color: green;
-    margin-left: auto;
+    margin-left: 15px;
+    margin-top: 3px;
 }
 
 .status.offline {
     background-color: gray;
+}
+.chat-item:hover{
+    background-color: rgb(225, 218, 218);
+}
+.message {
+    padding: 8px;
+    margin: 4px 0;
+    background: #e1f5fe;
+    border-radius: 5px;
+    word-wrap: break-word;
+}
+
+.message:nth-child(even) {
+    background: #f1f1f1;
+    margin-left: auto;
 }
