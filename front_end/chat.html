@@ -49,7 +49,7 @@
                     chatHeader.textContent = roomName; // Đổi tên phòng ở header
                     // Gửi yêu cầu lấy tin nhắn của phòng
                     const userId = sessionStorage.getItem("user_id");
-                    // socket.send(`load_room_messages ${roomName} ${userId}`);
+                    socket.send(`load_room_messages ${roomName} ${userId}`);
                 });
             });
         }
@@ -57,11 +57,9 @@
         socket.onmessage = (event) => {
             const response = event.data;
             console.log(response);
-
             if (response === "room_message_success") {
                 console.log("Message sent successfully.");
                 const userId = sessionStorage.getItem("user_id");
-                // socket.send(`list_rooms ${userId}`); // Gửi yêu cầu cập nhật danh sách phòng
             }
             else if (response === "room_not_found") {
                 alert("Room not found.");
@@ -70,10 +68,28 @@
                 console.log(response);
 
                 const messages = response.split("room_messages ")[1]; // Lấy nội dung tin nhắn
+                chatBody.innerHTML = ""; // Xóa chat cũ
                 messages.split("\n").forEach(msg => {
                     if (msg.trim()) {
                         const messageElement = document.createElement("div");
-                        messageElement.textContent = msg; // Hiển thị từng tin nhắn
+                        if (msg.includes("MESSAGE")) {
+                            const parts = msg.split(" ");
+                            const sender = parts[1]; // Lấy tên người gửi
+                            const content = parts.slice(2).join(" "); // Lấy nội dung tin nhắn
+
+                            // Kiểm tra nếu tin nhắn là của user hiện tại
+                            const isCurrentUser = sender === sessionStorage.getItem("user_name");
+                            const messageClass = isCurrentUser ? "right" : "left";
+
+                            // Tạo tin nhắn và loại bỏ tên người gửi nếu là tin của user hiện tại
+                            const messageElement = document.createElement("div");
+                            messageElement.classList.add("message", messageClass);
+                            messageElement.innerHTML = isCurrentUser
+                                ? `<span class="content">${content}</span>` // Chỉ hiển thị nội dung tin nhắn
+                                : `<span class="sender">${sender}:</span> <span class="content">${content}</span>`; // Hiển thị tên và nội dung
+
+                            chatBody.appendChild(messageElement);
+                        }
                         chatBody.appendChild(messageElement);
                     }
                 });

@@ -490,8 +490,7 @@ int room_message(int room_id, int sender_id, const char *message)
         {
             int member_id = rooms[room_id].members[i];
             char full_message[BUFFER_SIZE];
-            snprintf(full_message, sizeof(full_message), "Room %d [%s]: %s",
-                     room_id, clients[sender_id].username, message);
+            snprintf(full_message, sizeof(full_message), "room_message %s %s", clients[sender_id].username, message);
             send(clients[member_id].socket, full_message, strlen(full_message), 0);
         }
 

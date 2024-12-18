@@ -5,3 +5,10 @@ MESSAGE cuong 1234
 MESSAGE cuong xin
 MESSAGE cuong halo
 MESSAGE viet xin chao minh la viet 
+MESSAGE cuong hom nay la ngay 19/12 
+MESSAGE cuong chao nhe 
+MESSAGE viet chao buoi toi 
+JOIN vinh 5
+MESSAGE vinh xin chao minh la vinh 
+MESSAGE cuong hallo 
+MESSAGE cuong xin chao 

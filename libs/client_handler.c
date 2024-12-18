@@ -674,6 +674,7 @@ void *client_handler(void *socket_desc)
         {
             char room_name[BUFFER_SIZE];
             int user_id;
+
             sscanf(payload, "%s %d", room_name, &user_id);
 
             char room_file[BUFFER_SIZE];
@@ -683,15 +684,11 @@ void *client_handler(void *socket_desc)
             if (file)
             {
                 char line[BUFFER_SIZE];
-                char all_messages[BUFFER_SIZE * 10] = ""; // Chứa toàn bộ tin nhắn phòng
+                char all_messages[BUFFER_SIZE * 10] = ""; // Chứa toàn bộ tin nhắn
 
                 while (fgets(line, sizeof(line), file))
                 {
-                    if (strncmp(line, "MESSAGE", 7) == 0)
-                    {
-                        strcat(all_messages, line + 8); // Lấy tin nhắn (bỏ "MESSAGE ")
-                        strcat(all_messages, "\n");
-                    }
+                    strcat(all_messages, line);
                 }
                 fclose(file);
 
