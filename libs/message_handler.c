@@ -168,7 +168,8 @@ void send_offline_message(int sender_id, int receiver_id, const char *message) {
     log_message("Stored offline message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
 }
 
-void retrieve_message(int sender_id, int receiver_id) {
+void retrieve_message(int client_sock, int sender_id, int receiver_id) {
+    // printf("sender_id: %d, receiver_id: %d\n", sender_id, receiver_id);
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
         fprintf(stderr, "Invalid sender or receiver ID\n");
         const char *response = "Invalid sender or receiver ID";
@@ -232,9 +233,28 @@ void retrieve_message(int sender_id, int receiver_id) {
         response_size += written;
     }
 
-    printf("Response: %s\n", response);
-    send_websocket_message(clients[sender_id].socket, response, response_size, 0);
 
+    const char *prefix = "RETRIEVE_RESPONSE";
+    size_t prefix_length = strlen(prefix);
+    size_t response_length = strlen(response);
+    size_t new_response_size = prefix_length + response_length + 1; // +1 for null terminator
+
+    char *new_response = (char *)malloc(new_response_size);
+    if (new_response == NULL) {
+        // Handle memory allocation failure
+        perror("Failed to allocate memory for new response");
+        return;
+    }
+
+    strcpy(new_response, prefix);
+    strcat(new_response, response);
+
+    send_websocket_message(client_sock, new_response, new_response_size - 1, 0); // -1 to exclude null terminator
+
+
+    // send(client_sock, response, response_size, 0);
+    printf("Sent message to %s\n", clients[sender_id].username);
+    free(new_response);
     free(response);
     free(message_list);
 }

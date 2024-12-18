@@ -149,7 +149,7 @@ void *client_handler(void *socket_desc)
 
                 if (new_id != -1)
                 {
-                    // int id = add_client(client_sock, new_id, username, password);
+                    int id = add_client(client_sock, new_id, username, password);
                     // printf("%d\n", id);
                     user_id = new_id;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
@@ -190,7 +190,7 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    // add_client(client_sock, user_id, username, password); // Thêm client vào mảng
+                    add_client(client_sock, user_id, username, password); // Thêm client vào mảng
 
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
@@ -310,12 +310,19 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "listfr") == 0)
         {
+            printf("listfr\n");
+            char userID[BUFFER_SIZE];
+            sscanf(payload, "%s", userID);
+            user_id = atoi(userID);
             pthread_mutex_lock(&clients_mutex);
 
             char *friends_list = get_friends(clients[user_id]);
+            char response[BUFFER_SIZE];
+            snprintf(response, BUFFER_SIZE, "LIST_FRIENDS_RESPONSE\n%s", friends_list);
+            printf("friends_list: %s\n", friends_list);
             pthread_mutex_unlock(&clients_mutex);
 
-            send_websocket_message(client_sock, friends_list, strlen(friends_list), 0);
+            send_websocket_message(client_sock, response, strlen(response), 0);
         }
         else if (strcmp(command, "cancel") == 0)
         {
@@ -418,9 +425,11 @@ void *client_handler(void *socket_desc)
         else if (strcmp(command, "retrieve") == 0)
         {
             char receiver_id[BUFFER_SIZE];
-            int sender_id = user_id;
-            sscanf(payload, "%s %[^\n]", receiver_id);
-            retrieve_message(sender_id, atoi(receiver_id));
+            char sender_id[BUFFER_SIZE];
+            sscanf(payload, "%s %s", sender_id, receiver_id);
+            // printf("sender_id: %s\n", sender_id);
+            // printf("receiver_id: %s\n", receiver_id);
+            retrieve_message(client_sock, atoi(sender_id), atoi(receiver_id));
         }
         else if (strcmp(command, "create_room") == 0)
         {
@@ -547,14 +556,14 @@ void *client_handler(void *socket_desc)
         {
             char user_rooms[BUFFER_SIZE];
             get_user_rooms(user_id, user_rooms);
-
+            snprintf(user_rooms, BUFFER_SIZE, "LIST_ROOMS_RESPOMSE\n");
             if (strlen(user_rooms) > 0)
             {
-                send(client_sock, user_rooms, strlen(user_rooms), 0);
+                send_websocket_message(client_sock, user_rooms, strlen(user_rooms), 0);
             }
             else
             {
-                send(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
+                send_websocket_message(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
             }
         }
 

@@ -21,6 +21,6 @@ typedef struct {
 void send_private_message(int sender_id, int receiver_id, const char *message);
 void send_offline_message(int sender_id, int receiver_id, const char *message);
 void store_message(int sender_id, int receiver_id, const char *message);
-void retrieve_message(int sender_id, int receiver_id);
+void retrieve_message(int client_sock, int sender_id, int receiver_id);
 
 #endif
