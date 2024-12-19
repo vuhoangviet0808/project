@@ -24,7 +24,24 @@
 
         const sendBtn = document.getElementById("send-btn"); //chat room
         const messageInput = document.getElementById("message-input");
+
+        const addUserBtn = document.getElementById("add-user-btn"); //add user vao room
+        const addUserInput = document.getElementById("add-user-input");
         let currentRoom = null;
+
+        function getListRoomSideBar() {
+            const userId = sessionStorage.getItem("user_id");
+            const username = sessionStorage.getItem("user_name");
+            if (userId && username) {
+                console.log(`User: ${username}, ID: ${userId}`);
+                usernameDisplay.textContent = username; // Hiển thị tên người dùng
+                socket.send(`list_rooms ${userId}`); // Yêu cầu danh sách phòng
+            } else {
+                alert("User session not found. Please log in again.");
+                window.location.href = "login.html";
+            }
+
+        }
         // Kết nối WebSocket
         const socket = new WebSocket('ws://localhost:8080');
         socket.onopen = () => {
@@ -41,12 +58,18 @@
             }
 
         };
-        function setupRoomClickEvents() {      //xet su kien click vao room
+        function setupRoomClickEvents() {
             const roomItems = document.querySelectorAll(".chat-item");
             roomItems.forEach(item => {
                 item.addEventListener("click", () => {
-                    const roomName = item.querySelector("h4").innerText; // Lấy tên phòng từ h4
-                    chatHeader.textContent = roomName; // Đổi tên phòng ở header
+                    const roomInfo = item.querySelector("h4").innerText; // Lấy thông tin từ tiêu đề h4
+                    const [roomName, roomId] = roomInfo.split(":id-"); // Tách tên phòng và ID
+                    console.log(roomId);
+
+
+                    // Cập nhật header với tên nhóm và ID
+                    chatHeader.textContent = `${roomName} (ID: ${roomId})`;
+
                     // Gửi yêu cầu lấy tin nhắn của phòng
                     const userId = sessionStorage.getItem("user_id");
                     socket.send(`load_room_messages ${roomName} ${userId}`);
@@ -55,10 +78,17 @@
         }
 
         socket.onmessage = (event) => {
+
             const response = event.data;
             console.log(response);
 
-            if (response.startsWith("room_messages")) {
+            if (response === "user_added_to_room_success") {
+                alert("User added successfully!");
+            } else if (response === "user_add_failed") {
+                alert("Failed to add user. Please check the User ID or room status.");
+            }
+
+            else if (response.startsWith("room_messages")) {
                 console.log(response);
 
                 const messages = response.split("room_messages ")[1]; // Lấy nội dung tin nhắn
@@ -143,18 +173,20 @@
             }
 
 
+
             else {
                 // Xử lý hiển thị danh sách phòng
                 chatList.innerHTML = "";
                 const rooms = response.split("\n").filter(line => line.trim() !== "");
 
                 rooms.forEach(room => {
+                    const [roomName, roomId] = room.split(":"); // Tách tên phòng và ID
                     const roomElement = document.createElement("div");
                     roomElement.className = "chat-item";
                     roomElement.innerHTML = `
                 <img src="https://via.placeholder.com/50" alt="Room Avatar">
                 <div class="chat-info">
-                    <h4>${room}</h4>
+                    <h4>${roomName}:id-${roomId}</h4>
                     <span class="status online"></span>
                 </div>
             `;
@@ -186,6 +218,18 @@
                 joinRoomInput.value = ""; // Xóa input sau khi gửi
             } else {
                 alert("Please enter a valid room ID and make sure you're logged in.");
+            }
+        });
+        //ADd user vao room
+        addUserBtn.addEventListener("click", () => {
+            const userId = addUserInput.value.trim();
+            const roomName = chatHeader.textContent.split(" (")[0]; // Lấy tên phòng từ header
+            if (userId && roomName) {
+                socket.send(`add_to_room ${roomName} ${userId}`);
+                getListRoomSideBar();
+                addUserInput.value = ""; // Xóa input sau khi gửi
+            } else {
+                alert("Please enter a valid User ID and make sure you're in a room.");
             }
         });
 
@@ -237,7 +281,12 @@
         <div class="chat">
             <div class="chat-header">
                 <h3 id="room-name">Room Name</h3>
+                <div class="add-user">
+                    <input type="number" id="add-user-input" placeholder="Enter User ID">
+                    <button id="add-user-btn">Add User</button>
+                </div>
             </div>
+
 
             <div class="chat-body" id="chat-body">
                 <!-- Tin nhắn sẽ được thêm động từ JavaScript -->

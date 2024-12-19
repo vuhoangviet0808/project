@@ -555,30 +555,55 @@ void *client_handler(void *socket_desc)
             }
         }
 
+        // else if (strcmp(command, "add_to_room") == 0)
+        // {
+        //     char username[BUFFER_SIZE], password[BUFFER_SIZE];
+        //     sscanf(payload, "%s %s", username, password);
+        //     int room_id, target_user_id;
+        //     sscanf(buffer + strlen(command) + 1, "%d %d", &room_id, &target_user_id);
+
+        //     if (add_user_to_room(room_id, target_user_id))
+        //     {
+        //         send(client_sock, "User added to room successfully.\n", strlen("User added to room successfully.\n"), 0);
+        //         char notify_message[BUFFER_SIZE];
+        //         snprintf(notify_message, sizeof(notify_message),
+        //                  "You have been added to room %d by %s.\n",
+        //                  room_id, clients[user_id].username);
+        //         send(clients[target_user_id].socket, notify_message, strlen(notify_message), 0);
+
+        //     }
+        //     else
+        //     {
+        //         send(client_sock, "Failed to add user to room.\n", strlen("Failed to add user to room.\n"), 0);
+        //     }
+        // }
         else if (strcmp(command, "add_to_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id, target_user_id;
-            sscanf(buffer + strlen(command) + 1, "%d %d", &room_id, &target_user_id);
+            char room_name[BUFFER_SIZE];
+            int target_user_id;
 
-            if (add_user_to_room(room_id, target_user_id))
+            sscanf(payload, "%s %d", room_name, &target_user_id);
+
+            pthread_mutex_lock(&rooms_mutex);
+            int room_id = -1;
+
+            for (int i = 0; i < MAX_ROOMS; i++)
             {
-                send(client_sock, "User added to room successfully.\n", strlen("User added to room successfully.\n"), 0);
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    room_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
 
-                // Gửi thông báo đến người dùng được thêm
-                // if (clients[target_user_id].is_online)
-                // {
-                char notify_message[BUFFER_SIZE];
-                snprintf(notify_message, sizeof(notify_message),
-                         "You have been added to room %d by %s.\n",
-                         room_id, clients[user_id].username);
-                send(clients[target_user_id].socket, notify_message, strlen(notify_message), 0);
-                // }
+            if (room_id != -1 && add_user_to_room(room_id, target_user_id))
+            {
+                send_websocket_message(client_sock, "user_added_to_room_success", strlen("user_added_to_room_success"), 0);
             }
             else
             {
-                send(client_sock, "Failed to add user to room.\n", strlen("Failed to add user to room.\n"), 0);
+                send_websocket_message(client_sock, "user_add_failed", strlen("user_add_failed"), 0);
             }
         }
         else if (strcmp(command, "leave_room") == 0)

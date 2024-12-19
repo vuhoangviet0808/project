@@ -4,3 +4,4 @@ MESSAGE cuong 1234
 MESSAGE cuong 1234
 MESSAGE cuong hello xin chao 
 JOIN viet 2
+JOIN vinh 5
