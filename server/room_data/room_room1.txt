@@ -10,5 +10,9 @@ MESSAGE cuong chao nhe
 MESSAGE viet chao buoi toi 
 JOIN vinh 5
 MESSAGE vinh xin chao minh la vinh 
-MESSAGE cuong hallo 
-MESSAGE cuong xin chao 
+MESSAGE cuong 1234 
+JOIN dung 7
+MESSAGE cuong 1234 
+MESSAGE cuong hello 
+MESSAGE dung xin chao 
+MESSAGE viet Đào Sỹ Cường 

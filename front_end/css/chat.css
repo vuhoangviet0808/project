@@ -218,3 +218,34 @@ textarea {
     display: inline-block;
     white-space: pre-wrap; /* Giữ định dạng xuống dòng */
 }
+.room-actions {
+    padding: 20px;
+}
+
+.room-actions div {
+    margin-bottom: 15px;
+    display: flex;
+}
+
+.room-actions input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px;
+    font-size: 10px;
+}
+
+.room-actions button {
+    padding: 6px;
+    background: #1b2838;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0;
+    font-size: 14px;
+    /* transition: background 0.3s ease; */
+}
+
+.room-actions button:hover {
+    background: #324b61;
+}

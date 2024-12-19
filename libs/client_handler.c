@@ -149,7 +149,7 @@ void *client_handler(void *socket_desc)
 
                 if (new_id != -1)
                 {
-                    // int id = add_client(client_sock, new_id, username, password);
+                    int id = add_client(client_sock, new_id, username, password);
                     // printf("%d\n", id);
                     user_id = new_id;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
@@ -391,7 +391,6 @@ void *client_handler(void *socket_desc)
 
                 int result = remove_friend(&clients[user_id], &clients[sender_id]);
                 pthread_mutex_unlock(&clients_mutex);
-
                 if (result == 1)
                 {
                     send_websocket_message(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
@@ -538,9 +537,10 @@ void *client_handler(void *socket_desc)
 
                     if (room_id != -1)
                     {
-                        if (room_message(room_id, user_id, message))
+                        if (room_message(room_id, user_id, message, client_sock))
                         {
-                            send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
+                            // send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
+                            printf("Message sent successfully.\n");
                         }
                         else
                         {

@@ -3,3 +3,4 @@ MESSAGE cuong 123124
 MESSAGE cuong 1234
 MESSAGE cuong 1234
 MESSAGE cuong hello xin chao 
+JOIN viet 2

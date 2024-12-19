@@ -2,3 +2,4 @@ JOIN cuong 1
 
 MESSAGE cuong toi la cuong 
 MESSAGE cuong rat vui duoc gap ban 
+JOIN viet 2

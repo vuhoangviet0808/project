@@ -57,14 +57,8 @@
         socket.onmessage = (event) => {
             const response = event.data;
             console.log(response);
-            if (response === "room_message_success") {
-                console.log("Message sent successfully.");
-                const userId = sessionStorage.getItem("user_id");
-            }
-            else if (response === "room_not_found") {
-                alert("Room not found.");
-            }
-            else if (response.startsWith("room_messages")) {
+
+            if (response.startsWith("room_messages")) {
                 console.log(response);
 
                 const messages = response.split("room_messages ")[1]; // Lấy nội dung tin nhắn
@@ -93,7 +87,63 @@
                         chatBody.appendChild(messageElement);
                     }
                 });
-            } else {
+            }
+            else if (response.startsWith("Room created and joined successfully")) {
+                console.log("tao phong thanh cong");
+                const userId = sessionStorage.getItem("user_id");
+                const username = sessionStorage.getItem("user_name");
+                if (userId && username) {
+                    console.log(`User: ${username}, ID: ${userId}`);
+                    usernameDisplay.textContent = username; // Hiển thị tên người dùng
+                    socket.send(`list_rooms ${userId}`); // Yêu cầu danh sách phòng
+                }
+            }
+            else if (response.startsWith("Joined room successfully")) {
+                console.log("join thanh cong");
+                const userId = sessionStorage.getItem("user_id");
+                const username = sessionStorage.getItem("user_name");
+                if (userId && username) {
+                    console.log(`User: ${username}, ID: ${userId}`);
+                    usernameDisplay.textContent = username; // Hiển thị tên người dùng
+                    socket.send(`list_rooms ${userId}`); // Yêu cầu danh sách phòng
+                }
+            }
+            else if (response.startsWith("new_room_message")) {
+                console.log("New message received.");
+
+                const parts = response.split(" ");
+                const sender = parts[1]; // Người gửi
+                const content = parts.slice(2).join(" "); // Nội dung tin nhắn
+                const isCurrentUser = sender === sessionStorage.getItem("user_name");
+                const messageClass = isCurrentUser ? "right" : "left";
+
+                // Tạo phần tử tin nhắn
+                const messageElement = document.createElement("div");
+                messageElement.classList.add("message", messageClass);
+                messageElement.innerHTML = isCurrentUser
+                    ? `<span class="content">${content}</span>` // Nếu là tin nhắn của user hiện tại
+                    : `<span class="sender">${sender}:</span> <span class="content">${content}</span>`; // Nếu là tin nhắn của người khác
+
+                // Thêm tin nhắn vào giao diện
+                chatBody.appendChild(messageElement);
+                chatBody.scrollTop = chatBody.scrollHeight; // Cuộn xuống cuối
+            }
+            else if (response === "room_message_success") {
+                console.log("Message sent successfully.");
+                const userId = sessionStorage.getItem("user_id");
+                const roomName = chatHeader.textContent.trim(); // Lấy tên phòng hiện tại
+                if (userId && roomName) {
+                    // Gửi yêu cầu tải lại tin nhắn của phòng hiện tại
+                    socket.send(`load_room_messages ${roomName} ${userId}`);
+                }
+            }
+
+            else if (response === "room_not_found") {
+                alert("Room not found.");
+            }
+
+
+            else {
                 // Xử lý hiển thị danh sách phòng
                 chatList.innerHTML = "";
                 const rooms = response.split("\n").filter(line => line.trim() !== "");

@@ -459,23 +459,20 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
 //     pthread_mutex_unlock(&rooms_mutex);
 //     return 0; // Gửi thất bại
 // }
-int room_message(int room_id, int sender_id, const char *message)
+int room_message(int room_id, int sender_id, const char *message, int client_sock)
 {
     pthread_mutex_lock(&rooms_mutex);
 
     if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
     {
-        // printf("test: User ID %d, Username: '%s'\n", sender_id, clients[sender_id].username);
+        // Lưu tin nhắn vào file
         char room_file[BUFFER_SIZE];
         snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
 
         FILE *file = fopen(room_file, "a");
         if (file)
         {
-            // Kiểm tra username hợp lệ
-            const char *username = clients[sender_id].username[0] ? clients[sender_id].username : "unknown";
-
-            fprintf(file, "MESSAGE %s %s\n", username, message);
+            fprintf(file, "MESSAGE %s %s\n", clients[sender_id].username, message);
             fclose(file);
         }
         else
@@ -484,15 +481,19 @@ int room_message(int room_id, int sender_id, const char *message)
             pthread_mutex_unlock(&rooms_mutex);
             return 0;
         }
-
-        // Gửi tin nhắn đến các thành viên trong phòng
+        // printf("\n%d\n", 123);
+        // Gửi tin nhắn đến tất cả thành viên
         for (int i = 0; i < rooms[room_id].member_count; i++)
         {
             int member_id = rooms[room_id].members[i];
+            printf("\n%d\n", member_id);
             char full_message[BUFFER_SIZE];
-            snprintf(full_message, sizeof(full_message), "room_message %s %s", clients[sender_id].username, message);
-            send(clients[member_id].socket, full_message, strlen(full_message), 0);
+            snprintf(full_message, sizeof(full_message), "new_room_message %s %s", clients[sender_id].username, message);
+            printf("client_sockcet: %d", clients[member_id].socket);
+            send_websocket_message(clients[member_id].socket, full_message, strlen(full_message), 0);
         }
+        printf("client_sock_user :%d\n", client_sock);
+        send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
 
         pthread_mutex_unlock(&rooms_mutex);
         return 1;

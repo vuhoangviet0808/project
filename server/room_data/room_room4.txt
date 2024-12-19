@@ -1,0 +1,2 @@
+JOIN cuong 1
+JOIN viet 2
