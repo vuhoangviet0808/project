@@ -3,7 +3,7 @@
 // Định nghĩa biến toàn cục
 ChatRoom rooms[MAX_ROOMS];
 pthread_mutex_t rooms_mutex = PTHREAD_MUTEX_INITIALIZER;
-
+extern Client clients[MAX_CLIENTS];
 // Khởi tạo danh sách phòng
 
 int next_room_id = 0;
@@ -33,15 +33,15 @@ void load_rooms()
         {
             int room_id;
             char room_name[BUFFER_SIZE];
-
-            if (sscanf(line, "%d %s", &room_id, room_name) == 2)
+            int creator_id;
+            if (sscanf(line, "%d %s %d", &room_id, room_name, &creator_id) == 3)
             {
                 // Khôi phục thông tin phòng
                 rooms[room_id].id = room_id;
                 strncpy(rooms[room_id].name, room_name, BUFFER_SIZE);
                 rooms[room_id].name[BUFFER_SIZE - 1] = '\0';
                 rooms[room_id].member_count = 0;
-
+                rooms[room_id].creator_id = creator_id;
                 // Đọc danh sách thành viên từ file room_<name>.txt
                 char room_file[BUFFER_SIZE];
                 snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", room_name);
@@ -407,47 +407,44 @@ int leave_room(int room_id, int user_id)
 int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
 {
     pthread_mutex_lock(&rooms_mutex);
-
+    printf("1234567");
     // Kiểm tra nếu phòng tồn tại
     if (room_id < 0 || room_id >= MAX_ROOMS || rooms[room_id].id == -1)
     {
+        printf("phong ton tai");
         pthread_mutex_unlock(&rooms_mutex);
-        printf("Room with ID %d does not exist.\n", room_id);
-        return 0; // Phòng không tồn tại
+        return 0;
     }
-
-    // Kiểm tra nếu người thực hiện là người tạo nhóm
+    printf("12345");
     if (rooms[room_id].creator_id != remover_id)
     {
+        printf("nguoi dung khong phai la nguoi ta0");
         pthread_mutex_unlock(&rooms_mutex);
-        printf("User %d is not the creator of room %d. Cannot remove members.\n", remover_id, room_id);
-        return 0; // Không có quyền xóa
+        return 0;
     }
-
-    // Kiểm tra nếu người bị xóa nằm trong danh sách thành viên
+    printf("123");
     int user_found = 0;
+
     for (int i = 0; i < rooms[room_id].member_count; i++)
     {
         if (rooms[room_id].members[i] == user_id_to_remove)
         {
-            // Dịch các thành viên phía sau lên
             for (int j = i; j < rooms[room_id].member_count - 1; j++)
             {
                 rooms[room_id].members[j] = rooms[room_id].members[j + 1];
+                printf(rooms[room_id].members[j]);
             }
             rooms[room_id].member_count--;
             user_found = 1;
             break;
         }
     }
-
     if (!user_found)
     {
+        printf("user khong ton tai");
         pthread_mutex_unlock(&rooms_mutex);
-        printf("User with ID %d is not in room %d.\n", user_id_to_remove, room_id);
-        return 0; // Người dùng không nằm trong phòng
+        return 0;
     }
-
     // Ghi vào file room_<name>.txt
     char room_file[BUFFER_SIZE];
     snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
@@ -462,26 +459,8 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
         perror("Failed to open room file");
     }
 
-    // Gửi thông báo tới các thành viên khác trong phòng
-    for (int i = 0; i < rooms[room_id].member_count; i++)
-    {
-        int member_id = rooms[room_id].members[i];
-        // if (clients[member_id].is_online)
-        // {
-        char notification[BUFFER_SIZE];
-        snprintf(notification, sizeof(notification), "User %s has been removed from room %s by the creator.\n",
-                 clients[user_id_to_remove].username, rooms[room_id].name);
-        send(clients[member_id].socket, notification, strlen(notification), 0);
-        // }
-    }
-
-    // Thông báo trên server
-    printf("User %s (ID: %d) has been removed from room %s (ID: %d) by the creator (ID: %d).\n",
-           clients[user_id_to_remove].username, user_id_to_remove,
-           rooms[room_id].name, room_id, remover_id);
-
     pthread_mutex_unlock(&rooms_mutex);
-    return 1; // Xóa thành công
+    return 1;
 }
 
 // int room_message(int room_id, int sender_id, const char *message)
@@ -557,11 +536,13 @@ int room_message(int room_id, int sender_id, const char *message, int client_soc
             printf("\n%d\n", member_id);
             char full_message[BUFFER_SIZE];
             snprintf(full_message, sizeof(full_message), "new_room_message %s %s", clients[sender_id].username, message);
-            printf("client_sockcet: %d", clients[member_id].socket);
+            printf("\nclient_sockcet: %d\n", clients[member_id].socket);
+            printf("\nclient_sockcet is_online: %d\n", clients[member_id].is_online);
+            printf("full_message : %s", full_message);
             send_websocket_message(clients[member_id].socket, full_message, strlen(full_message), 0);
         }
         printf("client_sock_user :%d\n", client_sock);
-        send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
+        // send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
 
         pthread_mutex_unlock(&rooms_mutex);
         return 1;
@@ -593,6 +574,29 @@ void get_user_rooms(int user_id, char *result)
                 }
             }
         }
+    }
+
+    pthread_mutex_unlock(&rooms_mutex);
+}
+void get_room_members(int room_id, char *result)
+{
+    pthread_mutex_lock(&rooms_mutex);
+
+    if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
+    {
+        snprintf(result, BUFFER_SIZE, "members_list "); // Thêm tiền tố `members_list`
+        for (int i = 0; i < rooms[room_id].member_count; i++)
+        {
+            char member_info[BUFFER_SIZE];
+            snprintf(member_info, sizeof(member_info), "%s (ID: %d)\n",
+                     clients[rooms[room_id].members[i]].username,
+                     clients[rooms[room_id].members[i]].id); // Bao gồm cả username và ID
+            strncat(result, member_info, BUFFER_SIZE - strlen(result) - 1);
+        }
+    }
+    else
+    {
+        snprintf(result, BUFFER_SIZE, "members_list Room not found or invalid room ID.");
     }
 
     pthread_mutex_unlock(&rooms_mutex);

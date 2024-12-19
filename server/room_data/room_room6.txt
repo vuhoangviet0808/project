@@ -1,1 +1,4 @@
 JOIN cuong 1
+JOIN viet 2
+LEAVE cuong 1
+LEAVE viet 2

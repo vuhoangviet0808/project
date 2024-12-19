@@ -27,7 +27,16 @@
 
         const addUserBtn = document.getElementById("add-user-btn"); //add user vao room
         const addUserInput = document.getElementById("add-user-input");
-        let currentRoom = null;
+
+        const leaveRoomBtn = document.getElementById("leave-room-btn"); // roi khoi room 
+
+        const removeUserBtn = document.getElementById("remove-user-btn"); //xoa khoi room
+        const removeUserInput = document.getElementById("remove-user-input");
+
+        const viewMembersBtn = document.getElementById("view-members-btn"); //danh sach member modal
+        const membersModal = document.getElementById("members-modal");
+        const closeModalBtn = document.querySelector(".close-btn");
+        const membersList = document.getElementById("members-list");
 
         function getListRoomSideBar() {
             const userId = sessionStorage.getItem("user_id");
@@ -78,11 +87,39 @@
         }
 
         socket.onmessage = (event) => {
-
             const response = event.data;
             console.log(response);
 
-            if (response === "user_added_to_room_success") {
+            if (response.startsWith("members_list")) {
+                const members = response.split("members_list ")[1].split("\n");
+                membersList.innerHTML = ""; // Xóa danh sách cũ
+
+                members.forEach(member => {
+                    if (member.trim()) {
+                        const memberItem = document.createElement("div");
+                        memberItem.className = "member-item";
+                        memberItem.textContent = member.trim(); // Hiển thị tên và ID
+                        membersList.appendChild(memberItem);
+                    }
+                });
+            }
+            else if (response.startsWith("user_removed_from_room_success")) {
+                alert("User removed successfully from the room!");
+                const userId = sessionStorage.getItem("user_id");
+                socket.send(`list_rooms ${userId}`);
+            } else if (response === "user_remove_failed") {
+                alert("Failed to remove user. You might not have permission or the user is not in the room.");
+            }
+            else if (response.startsWith("left_room_success")) {
+                alert("You have successfully left the room.");
+                // Reload room list
+                const userId = sessionStorage.getItem("user_id");
+                socket.send(`list_rooms ${userId}`);
+            } else if (response.startsWith("left_room_failed")) {
+                alert("Failed to leave the room.");
+            }
+
+            else if (response === "user_added_to_room_success") { //add user vao room
                 alert("User added successfully!");
             } else if (response === "user_add_failed") {
                 alert("Failed to add user. Please check the User ID or room status.");
@@ -140,7 +177,7 @@
             }
             else if (response.startsWith("new_room_message")) {
                 console.log("New message received.");
-
+                getListRoomSideBar()
                 const parts = response.split(" ");
                 const sender = parts[1]; // Người gửi
                 const content = parts.slice(2).join(" "); // Nội dung tin nhắn
@@ -161,7 +198,7 @@
             else if (response === "room_message_success") {
                 console.log("Message sent successfully.");
                 const userId = sessionStorage.getItem("user_id");
-                const roomName = chatHeader.textContent.trim(); // Lấy tên phòng hiện tại
+                const roomName = chatHeader.textContent.split(" (")[0];
                 if (userId && roomName) {
                     // Gửi yêu cầu tải lại tin nhắn của phòng hiện tại
                     socket.send(`load_room_messages ${roomName} ${userId}`);
@@ -232,11 +269,59 @@
                 alert("Please enter a valid User ID and make sure you're in a room.");
             }
         });
+        //Roi khoi nhom
+        leaveRoomBtn.addEventListener("click", () => {
+            const userId = sessionStorage.getItem("user_id");
+            const roomName = document.getElementById("room-name").textContent.split(" (")[0]; // Lấy tên phòng
+            if (userId && roomName) {
+                const confirmation = confirm(`Do you want to leave room "${roomName}"?`);
+                if (confirmation) {
+                    socket.send(`leave_room ${roomName} ${userId}`);
+                }
+            } else {
+                alert("Please select a room to leave.");
+            }
+        });
+        // Xoa khoi nhom
+        removeUserBtn.addEventListener("click", () => {
+            const userIdToRemove = removeUserInput.value.trim();
+            const roomName = chatHeader.textContent.split(" (")[0]; // Lấy tên phòng từ header
+            const removerId = sessionStorage.getItem("user_id"); // Lấy ID người thực hiện
+            console.log(userIdToRemove);
+            console.log(roomName);
+            console.log(removerId);
+
+            if (userIdToRemove && roomName && removerId) {
+                socket.send(`remove_user ${roomName} ${removerId} ${userIdToRemove}`);
+                removeUserInput.value = ""; // Xoá input sau khi gửi
+            } else {
+                alert("Please enter a valid User ID and make sure you're in a room.");
+            }
+        });
+        //danh sach member
+        viewMembersBtn.addEventListener("click", () => {
+            const roomName = document.getElementById("room-name").textContent.split(" (")[0];
+            const userId = sessionStorage.getItem("user_id");
+            membersModal.style.display = "block";
+            if (roomName && userId) {
+
+                // Gửi yêu cầu lấy danh sách thành viên qua WebSocket
+                socket.send(`view_members ${roomName} ${userId}`);
+            } else {
+                alert("Please select a room first!");
+            }
+        });
+
+        // Đóng modal
+        closeModalBtn.addEventListener("click", () => {
+            membersModal.style.display = "none";
+        });
+
 
         //nhắn tin room
         sendBtn.addEventListener("click", () => {
             const userId = sessionStorage.getItem("user_id");
-            const roomName = chatHeader.textContent.trim(); // Tên phòng hiện tại
+            const roomName = chatHeader.textContent.split(" (")[0];
             const message = messageInput.value.trim();
             if (message && roomName) {
 
@@ -282,8 +367,16 @@
             <div class="chat-header">
                 <h3 id="room-name">Room Name</h3>
                 <div class="add-user">
-                    <input type="number" id="add-user-input" placeholder="Enter User ID">
-                    <button id="add-user-btn">Add User</button>
+                    <div>
+                        <input type="number" id="add-user-input" placeholder="Enter User ID">
+                        <button id="add-user-btn">Add User</button>
+                    </div>
+                    <div>
+                        <input type="number" id="remove-user-input" placeholder="Enter User ID to Remove">
+                        <button id="remove-user-btn">Remove User</button>
+                    </div>
+                    <button id="leave-room-btn">Leave Room</button>
+                    <button id="view-members-btn">View Members</button>
                 </div>
             </div>
 
@@ -294,6 +387,15 @@
             <div class="chat-footer">
                 <textarea placeholder="Type a message..." id="message-input"></textarea>
                 <button class="send-btn" id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+    <div id="members-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Room Members</h2>
+            <div id="members-list" class="members-list">
+                <!-- Danh sách thành viên sẽ được thêm động qua JavaScript -->
             </div>
         </div>
     </div>

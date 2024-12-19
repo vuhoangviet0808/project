@@ -1,2 +1,5 @@
 JOIN cuong 1
 JOIN viet 2
+REMOVE viet 2
+JOIN viet 2
+REMOVE viet 2

@@ -14,6 +14,16 @@ MESSAGE cuong 1234
 JOIN dung 7
 MESSAGE cuong 1234 
 MESSAGE cuong hello 
-MESSAGE dung xin chao 
-MESSAGE viet Đào Sỹ Cường 
+MESSAGE cuong hellu 
+MESSAGE cuong alooo 
+MESSAGE viet aloo 
+MESSAGE viet chao nhe 
+MESSAGE cuong test thu 
+MESSAGE cuong 1234 
+MESSAGE cuong 123 
+MESSAGE viet 123 
+MESSAGE cuong hello 
+MESSAGE cuong chao buoi toi 
+MESSAGE cuong hellu 
+MESSAGE cuong aloo 
 MESSAGE cuong aloo 

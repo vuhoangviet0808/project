@@ -4,3 +4,6 @@
 4 room4 1
 5 room5 1
 6 room6 1
+7 room7 2
+8 room6 1
+9 room8 1
