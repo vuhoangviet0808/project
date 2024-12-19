@@ -8,36 +8,6 @@
 #include <stdint.h>
 #include "room_manager.h"
 
-
-
-
-#define CMD_REGISTER        0x01  // Đăng ký tài khoản
-#define CMD_LOGIN           0x02  // Đăng nhập
-#define CMD_CHAT            0x03  // Gửi tin nhắn riêng tư
-#define CMD_CHAT_OFFLINE    0x04  // Gửi tin nhắn ngoại tuyến
-#define CMD_RETRIEVE        0x05  // Lấy tin nhắn đã gửi/nhận
-#define CMD_ADDFR           0x06  // Gửi yêu cầu kết bạn
-#define CMD_ACCEPT          0x07  // Chấp nhận yêu cầu kết bạn
-#define CMD_DECLINE         0x08  // Từ chối yêu cầu kết bạn
-#define CMD_LISTFR          0x09  // Liệt kê danh sách bạn bè
-#define CMD_CANCEL          0x0A  // Hủy yêu cầu kết bạn đã gửi
-#define CMD_LISTREQ         0x0B  // Liệt kê danh sách yêu cầu kết bạn
-#define CMD_REMOVE          0x0C  // Xóa bạn bè
-#define CMD_CREATE_ROOM     0x0D  // Tạo phòng chat
-#define CMD_JOIN_ROOM       0x0E  // Tham gia phòng chat
-#define CMD_ROOM_MESSAGE    0x0F  // Gửi tin nhắn đến phòng chat
-#define CMD_ADD_TO_ROOM     0x10  // Thêm người dùng vào phòng chat
-#define CMD_LEAVE_ROOM      0x11  // Rời khỏi phòng chat
-#define CMD_REMOVE_USER     0x12  // Xóa người dùng khỏi phòng chat
-#define CMD_LIST_ROOMS      0x13  // Liệt kê các phòng chat đã tham gia
-#define CMD_LOGOUT          0x14
-
-#define STATUS_SUCCESS       0x00 // Thành công
-#define STATUS_ERROR         0x01 // Lỗi yêu cầu
-#define STATUS_NOT_FOUND     0x02 // Tài nguyên không tồn tại
-#define STATUS_SERVER_ERROR  0x03 // Lỗi hệ thống
-
-
 int decode_message(char *buffer, char *out_payload, size_t *out_len)
 {
 
@@ -46,7 +16,7 @@ int decode_message(char *buffer, char *out_payload, size_t *out_len)
     if (out_payload != NULL)
     {
         strncpy(out_payload, payload, *out_len - 1);
-        out_payload[*out_len - 1] = '\0'; 
+        out_payload[*out_len - 1] = '\0';
     }
     *out_len = strlen(payload);
     return command;
@@ -55,8 +25,8 @@ int decode_message(char *buffer, char *out_payload, size_t *out_len)
 size_t encode_response(uint8_t status, const char *message, char *out_buffer) {
     out_buffer[0] = status;
     size_t message_length = strlen(message);
-    strncpy(out_buffer + 1, message, BUFFER_SIZE - 1);  
-    out_buffer[message_length + 1] = '\0'; 
+    strncpy(out_buffer + 1, message, BUFFER_SIZE - 1);
+    out_buffer[message_length + 1] = '\0';
     return message_length + 1;
 }
 
@@ -541,7 +511,7 @@ void *client_handler(void *socket_desc)
 
         case CMD_RETRIEVE:
         {
-        
+
             char receiver_id_str[BUFFER_SIZE];
             sscanf(decoded_message, "%s", receiver_id_str);
 

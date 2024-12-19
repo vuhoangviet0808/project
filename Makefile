@@ -5,7 +5,7 @@ LDFLAGS = -L/opt/homebrew/opt/openssl@3/lib -lssl -lcrypto
 SRCDIR = libs
 OBJDIR = server
 SRC = server/server.c $(SRCDIR)/client_handler.c $(SRCDIR)/user_manager.c $(SRCDIR)/utils.c \
-      $(SRCDIR)/message_handler.c $(SRCDIR)/user.c $(SRCDIR)/websocket_handshake.c $(SRCDIR)/room_manager.c
+      $(SRCDIR)/message_handler.c $(SRCDIR)/user.c $(SRCDIR)/websocket_handshake.c $(SRCDIR)/room_manager.c $(SRCDIR)/protocol.c
 OBJ = $(patsubst %.c, $(OBJDIR)/%.o, $(notdir $(SRC)))
 
 all: $(OBJDIR)/server

@@ -207,11 +207,9 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "chat") == 0)
         {
-            char receiver_id[BUFFER_SIZE];
-            char message[BUFFER_SIZE];
-            int sender_id = user_id;
-            sscanf(payload, "%s %[^\n]", receiver_id, message);
-            send_private_message(sender_id, atoi(receiver_id), message);
+            char receiver_id[BUFFER_SIZE], sender_id[BUFFER_SIZE], message[BUFFER_SIZE];
+            sscanf(payload, "%s %s %[^\n]", sender_id, receiver_id, message);
+            send_private_message(atoi(sender_id), atoi(receiver_id), message);
         }
         else if (strcmp(command, "addfr") == 0)
         {
@@ -574,7 +572,7 @@ void *client_handler(void *socket_desc)
     }
 
     log_message("Client disconnected: ID %d", user_id);
-    remove_client(user_id);
+    // remove_client(user_id);
     close(client_sock);
     free(socket_desc);
     return NULL;

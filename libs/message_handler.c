@@ -1,4 +1,5 @@
 #include "message_handler.h"
+#include "common.h"
 #include "utils.h"
 #include <stdio.h>
 #include <string.h>
@@ -127,21 +128,21 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
     }
 
     char message_buffer[BUFFER_SIZE];
-    snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
+    snprintf(message_buffer, BUFFER_SIZE, "%s:%s", clients[sender_id].username, message);
 
     if (clients[receiver_id].is_online && clients[receiver_id].socket != -1) {
+        add_response_header(message_buffer, RESPONSE_CHAT);
         send_websocket_message(clients[receiver_id].socket, message_buffer, strlen(message_buffer), 0);
+        log_message("User %s sent private message to %s", clients[sender_id].username, clients[receiver_id].username);
+        // Store the message
+        store_message(sender_id, receiver_id, message);
+        log_message("Stored private message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
     } else {
         char response[BUFFER_SIZE];
         snprintf(response, BUFFER_SIZE, "User %s is not online.", clients[receiver_id].username);
+        printf("User %s is not online.\n", clients[receiver_id].username);
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
     }
-
-    log_message("User %s sent private message to %s", clients[sender_id].username, clients[receiver_id].username);
-    // Store the message
-    store_message(sender_id, receiver_id, message);
-    log_message("Stored private message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
-
 }
 
 void send_offline_message(int sender_id, int receiver_id, const char *message) {
@@ -234,27 +235,25 @@ void retrieve_message(int client_sock, int sender_id, int receiver_id) {
     }
 
 
-    const char *prefix = "RETRIEVE_RESPONSE";
-    size_t prefix_length = strlen(prefix);
-    size_t response_length = strlen(response);
-    size_t new_response_size = prefix_length + response_length + 1; // +1 for null terminator
+    // const char *prefix = "RETRIEVE_RESPONSE";
+    // size_t prefix_length = strlen(prefix);
+    // size_t response_length = strlen(response);
+    // size_t new_response_size = prefix_length + response_length + 1; // +1 for null terminator
 
-    char *new_response = (char *)malloc(new_response_size);
-    if (new_response == NULL) {
-        // Handle memory allocation failure
-        perror("Failed to allocate memory for new response");
-        return;
-    }
+    // char *new_response = (char *)malloc(new_response_size);
+    // if (new_response == NULL) {
+    //     // Handle memory allocation failure
+    //     perror("Failed to allocate memory for new response");
+    //     return;
+    // }
 
-    strcpy(new_response, prefix);
-    strcat(new_response, response);
+    add_response_header(response, RESPONSE_RETRIEVE);
 
-    send_websocket_message(client_sock, new_response, new_response_size - 1, 0); // -1 to exclude null terminator
+    send_websocket_message(client_sock, response, strlen(response), 0); // -1 to exclude null terminator
 
 
     // send(client_sock, response, response_size, 0);
     printf("Sent message to %s\n", clients[sender_id].username);
-    free(new_response);
     free(response);
     free(message_list);
 }
