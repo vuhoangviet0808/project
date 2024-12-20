@@ -413,11 +413,9 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "chat_offline") == 0)
         {
-            char receiver_id[BUFFER_SIZE];
-            char message[BUFFER_SIZE];
-            int sender_id = user_id;
-            sscanf(payload, "%s %[^\n]", receiver_id, message);
-            send_offline_message(sender_id, atoi(receiver_id), message);
+            char receiver_id[BUFFER_SIZE], sender_id[BUFFER_SIZE], message[BUFFER_SIZE];
+            sscanf(payload, "%s %s %[^\n]", sender_id, receiver_id, message);
+            send_offline_message(atoi(sender_id), atoi(receiver_id), message);
         }
         else if (strcmp(command, "retrieve") == 0)
         {

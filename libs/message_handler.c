@@ -9,6 +9,7 @@
 
 extern Client clients[MAX_CLIENTS];
 
+// Generates a fixed-length ID using a charset
 void generate_fixed_id(char *buffer) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     for (size_t i = 0; i < CONVERSATION_ID_LENGTH; ++i) {
@@ -17,6 +18,7 @@ void generate_fixed_id(char *buffer) {
     buffer[CONVERSATION_ID_LENGTH] = '\0';
 }
 
+// Ensures the directory exists, creates it if it doesn't
 void ensure_directory_exists(const char *path) {
     struct stat st = {0};
     if (stat(path, &st) == -1) {
@@ -24,28 +26,24 @@ void ensure_directory_exists(const char *path) {
     }
 }
 
+// Retrieves or creates a shared conversation ID between sender and receiver
 char *get_or_create_shared_conversation_id(const char *sender_file, const char *receiver_file, char *buffer) {
-    FILE *file;
-
-    // Try to read sender's file first
-    file = fopen(sender_file, "r");
+    FILE *file = fopen(sender_file, "r");
     if (file) {
-        if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
-            buffer[strcspn(buffer, "\n")] = '\0'; // Remove newline
+        if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) {
+            buffer[strcspn(buffer, "\n")] = '\0';
             fclose(file);
             return buffer;
         }
         fclose(file);
     }
 
-    // If sender's file doesn't have an ID, check receiver's file
     file = fopen(receiver_file, "r");
     if (file) {
-        if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
-            buffer[strcspn(buffer, "\n")] = '\0'; // Remove newline
+        if (fgets(buffer, CONVERSATION_ID_LENGTH + 2, file)) {
+            buffer[strcspn(buffer, "\n")] = '\0';
             fclose(file);
 
-            // Write this ID to sender's file to ensure consistency
             file = fopen(sender_file, "w");
             if (file) {
                 fprintf(file, "%s\n", buffer);
@@ -72,6 +70,7 @@ char *get_or_create_shared_conversation_id(const char *sender_file, const char *
     return buffer;
 }
 
+// Stores a message in the conversation file
 void store_message(int sender_id, int receiver_id, const char *message) {
     char sender_folder[BUFFER_SIZE], receiver_folder[BUFFER_SIZE];
     char sender_conversation_file[BUFFER_SIZE], receiver_conversation_file[BUFFER_SIZE];
@@ -88,13 +87,10 @@ void store_message(int sender_id, int receiver_id, const char *message) {
     snprintf(sender_conversation_file, BUFFER_SIZE, "%s/%s.txt", sender_folder, clients[receiver_id].username);
     snprintf(receiver_conversation_file, BUFFER_SIZE, "%s/%s.txt", receiver_folder, clients[sender_id].username);
 
-    // Get or create shared conversation ID
     get_or_create_shared_conversation_id(sender_conversation_file, receiver_conversation_file, conversation_id);
 
     // Ensure conversation_data folder exists
     ensure_directory_exists(conversation_folder);
-
-    // Path to the conversation file
     snprintf(conversation_file, BUFFER_SIZE, "%s/%s.txt", conversation_folder, conversation_id);
 
     // Append the message to the conversation file
@@ -110,18 +106,15 @@ void store_message(int sender_id, int receiver_id, const char *message) {
     }
 }
 
+// Sends a private message to the receiver if they are online, otherwise stores it
 void send_private_message(int sender_id, int receiver_id, const char *message) {
-    printf("%d %d", sender_id, receiver_id);
-    if (!message)
-    {
-        fprintf(stderr, "No message to send\n");
+    if (!message) {
         const char *response = "No message to send";
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID\n");
         const char *response = "Invalid sender or receiver ID";
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
@@ -130,10 +123,9 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
     char message_buffer[BUFFER_SIZE];
     char final_response[BUFFER_SIZE];
     snprintf(message_buffer, BUFFER_SIZE, "%s:%s", clients[sender_id].username, message);
-
     if (clients[receiver_id].is_online && clients[receiver_id].socket != -1) {
         add_response_header(final_response, RESPONSE_CHAT, message_buffer, strlen(message_buffer));
-        send_websocket_message(clients[receiver_id].socket, final_response, strlen(message_buffer), 0);
+        send_websocket_message(clients[receiver_id].socket, final_response, strlen(final_response), 0);
         log_message("User %s sent private message to %s", clients[sender_id].username, clients[receiver_id].username);
         // Store the message
         store_message(sender_id, receiver_id, message);
@@ -141,38 +133,39 @@ void send_private_message(int sender_id, int receiver_id, const char *message) {
     } else {
         char response[BUFFER_SIZE];
         snprintf(response, BUFFER_SIZE, "User %s is not online.", clients[receiver_id].username);
-        printf("User %s is not online.\n", clients[receiver_id].username);
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
     }
 }
 
+// Sends an offline message and stores it
 void send_offline_message(int sender_id, int receiver_id, const char *message) {
     if (!message) {
-        fprintf(stderr, "No message to send\n");
         const char *response = "No message to send";
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID\n");
         const char *response = "Invalid sender or receiver ID";
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
-
     char message_buffer[BUFFER_SIZE];
+    char final_response[BUFFER_SIZE];
     snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
     log_message("User %s sent offline message to %s", clients[sender_id].username, clients[receiver_id].username);
-    // Store the message
+
     store_message(sender_id, receiver_id, message);
     log_message("Stored offline message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
+
+    snprintf(final_response, BUFFER_SIZE, "%d", RESPONSE_CHAT_OFFLINE);
+    send_websocket_message(clients[sender_id].socket, final_response, strlen(final_response), 0);
 }
 
+// Retrieves messages from the conversation file
 void retrieve_message(int client_sock, int sender_id, int receiver_id) {
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID\n");
         const char *response = "Invalid sender or receiver ID";
         send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
@@ -241,10 +234,7 @@ void retrieve_message(int client_sock, int sender_id, int receiver_id) {
     }
 
     add_response_header(final_response, RESPONSE_RETRIEVE, response_content, response_size);
-
     send_websocket_message(client_sock, final_response, strlen(final_response), 0);
-
-    printf("Final Response: %s\n", final_response);
 
     free(response_content);
     free(final_response);
