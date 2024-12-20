@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Private Chat</title>
+    <link rel="stylesheet" href="./css/base.css" />
+    <link rel="stylesheet" href="./css/chat.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    />
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const chatBody = document.querySelector(".chat-body");
+        const createRoomInput = document.getElementById("create-room-input");
+        const joinRoomInput = document.getElementById("join-room-input");
+        const createRoomBtn = document.getElementById("create-room-btn");
+        const joinRoomBtn = document.getElementById("join-room-btn");
+        const friendList = document.getElementById("friend-list");
+        const messageInput = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-btn");
+        const chatHeader = document.getElementById("room-name");
+        const usernameDisplay = document.querySelector(".sidebar-header h1");
+        let selectedFriendUsername = null;
+        let selectedFriendId = null;
+
+        const socket = new WebSocket("ws://localhost:8080");
+
+        socket.onopen = () => {
+          console.log("WebSocket connected.");
+          const userId = sessionStorage.getItem("user_id");
+          const username = sessionStorage.getItem("user_name");
+          usernameDisplay.textContent = username;
+          if (userId) {
+            socket.send(`listfr ${userId}`); // Request friend list
+          } else {
+            console.error("User ID not found in sessionStorage.");
+          }
+        };
+
+        socket.onmessage = (event) => {
+          const response = event.data;
+          //   console.log(response);
+
+          if (response.startsWith(0x23)) {
+            // Extract the message after 0x23
+            const message = response.slice(2).trim(); // Remove the `0x23` prefix
+
+            // Parse the message: "username:message"
+            const [user, text] = message.split(":");
+
+            if (user && text) {
+              const messageElement = document.createElement("div");
+              messageElement.className = "message received"; // Style for received messages
+
+              // Add the message content with the correct style
+              messageElement.innerHTML = `
+      <span class="sender"><strong>${user}</strong>:</span> <span class="content">${text}</span>
+      <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+    `;
+
+              chatBody.appendChild(messageElement);
+
+              // Scroll to the bottom of the chat body
+              chatBody.scrollTop = chatBody.scrollHeight;
+            }
+          } else if (response.startsWith(0x25)) {
+            // Extract chat messages and display them
+            const messages = response
+              .slice(2)
+              .split("\n")
+              .filter((line) => line.trim() !== "");
+            chatBody.innerHTML = ""; // Clear the chat body
+
+            messages.forEach((message) => {
+              // Parse each message: [timestamp] user: message
+              const match = message.match(/^\[(.+?)\] (.+?): (.+)$/);
+              if (match) {
+                const [_, timestamp, user, text] = match;
+
+                const messageElement = document.createElement("div");
+
+                // Check if the user is the current user, if so, display "You:" instead of the username
+                const displayUser =
+                  user === selectedFriendUsername ? user : "You";
+
+                messageElement.className =
+                  user === selectedFriendUsername
+                    ? "message received"
+                    : "message sent";
+
+                messageElement.innerHTML = `
+        <span class="sender">${displayUser}: </span><span class="content">${text}</span>
+        <span class="timestamp">${timestamp}</span>
+      `;
+
+                chatBody.appendChild(messageElement);
+              }
+            });
+
+            // Scroll to the bottom of the chat body
+            chatBody.scrollTop = chatBody.scrollHeight;
+          } else if (response.startsWith(0x29)) {
+            // Extract friend list and display them
+            const friends = response
+              .slice(2)
+              .split("\n")
+              .filter((line) => line.trim() !== "");
+            friendList.innerHTML = ""; // Clear the friend list
+
+            friends.forEach((friend) => {
+              // Parse each friend: id:username
+              const [id, username] = friend.split(":");
+              if (id && username) {
+                const friendElement = document.createElement("div");
+                friendElement.textContent = username;
+                friendElement.dataset.friendId = id;
+                friendElement.dataset.friendUsername = username;
+                friendElement.className = "chat-item";
+                friendElement.innerHTML = `
+                    <div class="chat-info">
+                        <h4><strong>(ID:${id}) </strong> ${username}</h4>
+                        <span class="status online"></span>
+                    </div>
+                `;
+                friendList.appendChild(friendElement);
+
+                friendElement.addEventListener("click", () => {
+                  const userId = sessionStorage.getItem("user_id");
+                  if (userId) {
+                    selectedFriendId = id;
+                    selectedFriendUsername = username;
+                    socket.send(`retrieve ${userId} ${id}`);
+                    chatHeader.textContent = `${username}'s Chat`;
+                  }
+                });
+              }
+            });
+          }
+        };
+        sendButton.addEventListener("click", () => {
+          console.log("clicked");
+          const userId = sessionStorage.getItem("user_id");
+          console.log("user id", userId);
+          const message = messageInput.value.trim();
+
+          if (message && selectedFriendUsername) {
+            // Create the message element for the sender's side
+            const messageElement = document.createElement("div");
+            messageElement.className = "message sent"; // Style for sent messages
+            messageElement.innerHTML = `
+      <span class="content"><strong>You</strong>: ${message}</span>
+      <span class="timestamp">${new Date().toLocaleTimeString()}</span>
+    `;
+
+            // Append the message to the chat body immediately
+            chatBody.appendChild(messageElement);
+
+            // Scroll to the bottom of the chat body
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // Send the message to the WebSocket server
+            socket.send(`chat ${userId} ${selectedFriendId} ${message}`);
+
+            // Clear the input field
+            messageInput.value = "";
+          } else {
+            alert("Please enter a message and select a friend to chat with.");
+          }
+        });
+
+        createRoomBtn.addEventListener("click", () => {
+          const roomName = createRoomInput.value.trim();
+          const userId = sessionStorage.getItem("user_id");
+          if (roomName && userId) {
+            socket.send(`create_room ${roomName} ${userId}`);
+            createRoomInput.value = ""; // Clear input
+          } else {
+            alert("Please enter a room name and make sure you're logged in.");
+          }
+        });
+
+        joinRoomBtn.addEventListener("click", () => {
+          const roomId = joinRoomInput.value.trim();
+          const userId = sessionStorage.getItem("user_id");
+          if (roomId && userId) {
+            socket.send(`join_room ${roomId} ${userId}`);
+            joinRoomInput.value = ""; // Clear input
+          } else {
+            alert(
+              "Please enter a valid room ID and make sure you're logged in."
+            );
+          }
+        });
+
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+        };
+      });
+    </script>
+  </head>
+
+  <body>
+    <div class="messenger">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <h1>Username</h1>
+          <br />
+          <button class="add-friend-btn">
+            <i class="fas fa-user-plus"></i>
+          </button>
+        </div>
+        <div class="room-actions">
+          <!-- Input and button to add friends -->
+           <h2>
+            Send friend request
+           </h2>
+          <div>
+            <input
+              type="number"
+              id="add-friend-input"
+              placeholder="Enter User ID to send friend requets"
+            />
+            <button id="add-friend-btn">Send Request</button>
+          </div>
+        </div>
+        <!-- Friend list -->
+        <div class="chat-list" id="friend-list">
+          <!-- Friends will be dynamically added here -->
+        </div>
+      </div>
+
+      <!-- Chat Section -->
+      <div class="chat">
+        <div class="chat-header">
+          <h3 id="room-name">Choose a friend to chat with</h3>
+        </div>
+        <div class="chat-body" id="chat-body">
+          <!-- Chat messages will be dynamically added here -->
+        </div>
+        <div class="chat-footer">
+          <textarea
+            placeholder="Type a message..."
+            id="message-input"
+          ></textarea>
+          <button class="send-btn" id="send-btn">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

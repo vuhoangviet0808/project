@@ -75,3 +75,9 @@ html {
     border-radius: 5px;
     animation: growth linear 0.1s ;
 }
+
+.timestamp {
+    font-size: 0.8em;
+    color: #87919b;
+    margin-top: 20px;
+}

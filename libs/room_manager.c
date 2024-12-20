@@ -1,5 +1,6 @@
 #include "room_manager.h"
 #include "common.h"
+#include "utils.h"
 // Định nghĩa biến toàn cục
 ChatRoom rooms[MAX_ROOMS];
 pthread_mutex_t rooms_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -432,7 +433,7 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
             for (int j = i; j < rooms[room_id].member_count - 1; j++)
             {
                 rooms[room_id].members[j] = rooms[room_id].members[j + 1];
-                printf(rooms[room_id].members[j]);
+                // printf(rooms[room_id].members[j]);
             }
             rooms[room_id].member_count--;
             user_found = 1;

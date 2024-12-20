@@ -14,11 +14,11 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <!-- <script src="./js/login.js"> -->
 
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
+
             // Chuyển trang sang Đăng ký
             const switchBtn = document.querySelector(".authen-form__switach-btn");
             switchBtn.addEventListener("click", () => {
@@ -33,9 +33,7 @@
                 ws.onopen = () => {
                     document.getElementById("output").innerText = "Connected to WebSocket server";
                 };
-                function isNumeric(value) {
-                    return !isNaN(value) && !isNaN(parseFloat(value));
-                }
+
                 ws.onmessage = (event) => {
                     const response = event.data.trim(); // Loại bỏ khoảng trắng thừa
                     console.log(response);
@@ -52,7 +50,7 @@
                         sessionStorage.setItem("user_id", userId);
                         sessionStorage.setItem("user_name", username.trim());
                         alert("Login successful!");
-                        window.location.href = "chat.html";
+                        window.location.href = "chat-private.html";
                     } else {
                         alert("Invalid response from server: " + response);
                     }

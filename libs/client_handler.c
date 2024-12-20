@@ -149,7 +149,7 @@ void *client_handler(void *socket_desc)
 
                 if (new_id != -1)
                 {
-                    // int id = add_client(client_sock, new_id, username, password);
+                    int id = add_client(client_sock, new_id, username, password);
                     // printf("%d\n", id);
                     user_id = new_id;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
@@ -207,11 +207,9 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "chat") == 0)
         {
-            char receiver_id[BUFFER_SIZE];
-            char message[BUFFER_SIZE];
-            int sender_id = user_id;
-            sscanf(payload, "%s %[^\n]", receiver_id, message);
-            send_private_message(sender_id, atoi(receiver_id), message);
+            char receiver_id[BUFFER_SIZE], sender_id[BUFFER_SIZE], message[BUFFER_SIZE];
+            sscanf(payload, "%s %s %[^\n]", sender_id, receiver_id, message);
+            send_private_message(atoi(sender_id), atoi(receiver_id), message);
         }
         else if (strcmp(command, "addfr") == 0)
         {
@@ -310,12 +308,19 @@ void *client_handler(void *socket_desc)
         }
         else if (strcmp(command, "listfr") == 0)
         {
+            printf("listfr\n");
+            char userID[BUFFER_SIZE];
+            sscanf(payload, "%s", userID);
+            user_id = atoi(userID);
             pthread_mutex_lock(&clients_mutex);
 
             char *friends_list = get_friends(clients[user_id]);
+            char response[BUFFER_SIZE];
+            snprintf(response, BUFFER_SIZE, "%d\n%s", RESPONSE_LISTFR,friends_list);
+            printf("friends_list: %s\n", friends_list);
             pthread_mutex_unlock(&clients_mutex);
 
-            send_websocket_message(client_sock, friends_list, strlen(friends_list), 0);
+            send_websocket_message(client_sock, response, strlen(response), 0);
         }
         else if (strcmp(command, "cancel") == 0)
         {
@@ -417,9 +422,11 @@ void *client_handler(void *socket_desc)
         else if (strcmp(command, "retrieve") == 0)
         {
             char receiver_id[BUFFER_SIZE];
-            int sender_id = user_id;
-            sscanf(payload, "%s %[^\n]", receiver_id);
-            retrieve_message(sender_id, atoi(receiver_id));
+            char sender_id[BUFFER_SIZE];
+            sscanf(payload, "%s %s", sender_id, receiver_id);
+            // printf("sender_id: %s\n", sender_id);
+            // printf("receiver_id: %s\n", receiver_id);
+            retrieve_message(client_sock, atoi(sender_id), atoi(receiver_id));
         }
         else if (strcmp(command, "create_room") == 0)
         {
