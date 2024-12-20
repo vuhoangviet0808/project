@@ -408,24 +408,28 @@ int leave_room(int room_id, int user_id)
 int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
 {
     pthread_mutex_lock(&rooms_mutex);
-    printf("1234567");
+
     // Kiểm tra nếu phòng tồn tại
     if (room_id < 0 || room_id >= MAX_ROOMS || rooms[room_id].id == -1)
     {
-        printf("phong ton tai");
         pthread_mutex_unlock(&rooms_mutex);
         return 0;
     }
-    printf("12345");
+
+    // Kiểm tra nếu remover là người tạo phòng
     if (rooms[room_id].creator_id != remover_id)
     {
-        printf("nguoi dung khong phai la nguoi ta0");
+        // Gửi thông báo lỗi tới client
+        char error_message[BUFFER_SIZE];
+        snprintf(error_message, sizeof(error_message), "error_not_creator You are not the creator of the room and cannot remove members.");
+        send_websocket_message(clients[remover_id].socket, error_message, strlen(error_message), 0);
+
         pthread_mutex_unlock(&rooms_mutex);
         return 0;
     }
-    printf("123");
-    int user_found = 0;
 
+    // Tìm và xóa user khỏi danh sách
+    int user_found = 0;
     for (int i = 0; i < rooms[room_id].member_count; i++)
     {
         if (rooms[room_id].members[i] == user_id_to_remove)
@@ -433,19 +437,19 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
             for (int j = i; j < rooms[room_id].member_count - 1; j++)
             {
                 rooms[room_id].members[j] = rooms[room_id].members[j + 1];
-                // printf(rooms[room_id].members[j]);
             }
             rooms[room_id].member_count--;
             user_found = 1;
             break;
         }
     }
+
     if (!user_found)
     {
-        printf("user khong ton tai");
         pthread_mutex_unlock(&rooms_mutex);
         return 0;
     }
+
     // Ghi vào file room_<name>.txt
     char room_file[BUFFER_SIZE];
     snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
@@ -459,6 +463,11 @@ int remove_user_from_room(int room_id, int remover_id, int user_id_to_remove)
     {
         perror("Failed to open room file");
     }
+
+    // Gửi thông báo tới người bị xóa
+    char notification[BUFFER_SIZE];
+    snprintf(notification, sizeof(notification), "You have been removed from the room %s by the creator.", rooms[room_id].name);
+    send_websocket_message(clients[user_id_to_remove].socket, notification, strlen(notification), 0);
 
     pthread_mutex_unlock(&rooms_mutex);
     return 1;
@@ -513,6 +522,25 @@ int room_message(int room_id, int sender_id, const char *message, int client_soc
 
     if (room_id >= 0 && room_id < MAX_ROOMS && rooms[room_id].id != -1)
     {
+        // Kiểm tra xem sender có phải là thành viên của nhóm không
+        int is_member = 0;
+        for (int i = 0; i < rooms[room_id].member_count; i++)
+        {
+            if (rooms[room_id].members[i] == sender_id)
+            {
+                is_member = 1;
+                break;
+            }
+        }
+
+        if (!is_member)
+        {
+            pthread_mutex_unlock(&rooms_mutex);
+            printf("User %d is not a member of room %d.\n", sender_id, room_id);
+            send_websocket_message(client_sock, "error_not_a_member", strlen("error_not_a_member"), 0);
+            return 0; // Người gửi không phải là thành viên
+        }
+
         // Lưu tin nhắn vào file
         char room_file[BUFFER_SIZE];
         snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", rooms[room_id].name);
@@ -529,21 +557,15 @@ int room_message(int room_id, int sender_id, const char *message, int client_soc
             pthread_mutex_unlock(&rooms_mutex);
             return 0;
         }
-        // printf("\n%d\n", 123);
+
         // Gửi tin nhắn đến tất cả thành viên
         for (int i = 0; i < rooms[room_id].member_count; i++)
         {
             int member_id = rooms[room_id].members[i];
-            printf("\n%d\n", member_id);
             char full_message[BUFFER_SIZE];
             snprintf(full_message, sizeof(full_message), "new_room_message %s %s", clients[sender_id].username, message);
-            printf("\nclient_sockcet: %d\n", clients[member_id].socket);
-            printf("\nclient_sockcet is_online: %d\n", clients[member_id].is_online);
-            printf("full_message : %s", full_message);
             send_websocket_message(clients[member_id].socket, full_message, strlen(full_message), 0);
         }
-        printf("client_sock_user :%d\n", client_sock);
-        // send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
 
         pthread_mutex_unlock(&rooms_mutex);
         return 1;

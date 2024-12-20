@@ -89,8 +89,20 @@
         socket.onmessage = (event) => {
             const response = event.data;
             console.log(response);
-
-            if (response.startsWith("members_list")) {
+            if (response.startsWith("error_not_creator")) {
+                // Hiển thị thông báo lỗi nếu không phải là người tạo nhóm
+                const errorMessage = response.split("error_not_creator ")[1];
+                alert(errorMessage);
+            } else if (response.includes("You have been removed from the room")) {
+                alert(response);
+            }
+            else if (response === "error_not_a_member") {
+                alert("You are not a member of this room. Please rejoin to send messages.");
+                getListRoomSideBar();
+            } else if (response.includes("You have been removed from the room")) {
+                alert(response);
+            }
+            else if (response.startsWith("members_list")) {
                 const members = response.split("members_list ")[1].split("\n");
                 membersList.innerHTML = ""; // Xóa danh sách cũ
 
@@ -108,7 +120,7 @@
                 const userId = sessionStorage.getItem("user_id");
                 socket.send(`list_rooms ${userId}`);
             } else if (response === "user_remove_failed") {
-                alert("Failed to remove user. You might not have permission or the user is not in the room.");
+                alert("Failed to remove user");
             }
             else if (response.startsWith("left_room_success")) {
                 alert("You have successfully left the room.");
@@ -221,7 +233,6 @@
                     const roomElement = document.createElement("div");
                     roomElement.className = "chat-item";
                     roomElement.innerHTML = `
-                <img src="https://via.placeholder.com/50" alt="Room Avatar">
                 <div class="chat-info">
                     <h4>${roomName}:id-${roomId}</h4>
                     <span class="status online"></span>

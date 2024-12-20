@@ -7,3 +7,7 @@
 7 room7 2
 8 room6 1
 9 room8 1
+10 room14 9
+11 room14 10
+12 room13 8
+13 room15 11
