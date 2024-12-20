@@ -77,8 +77,7 @@ html {
 }
 
 .timestamp {
-    display: block;
     font-size: 0.8em;
-    color: #6c757d;
-    margin-top: 5px;
+    color: #87919b;
+    margin-top: 20px;
 }

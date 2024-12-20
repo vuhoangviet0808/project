@@ -64,7 +64,7 @@ void write_friend_request(Client *receiver) {
 int send_friend_request(Client *sender, Client *receiver) {
     for (int i = 0; i < receiver->request_count; i++) {
         if (receiver->add_friend_requests[i] == sender->id) {
-            return 0; 
+            return 0;
         }
     }
 
@@ -127,55 +127,67 @@ int cancel_friend_request(Client *sender, Client *receiver) {
             return 1;
         }
     }
-    return 0; 
+    return 0;
 }
 char* get_friends(Client user) {
-    size_t buffer_size = user.friend_count * 4; 
     char* listfr = (char*)malloc(BUFFER_SIZE);
     if (!listfr) {
         perror("malloc failed");
         return NULL;
     }
-    listfr[0] = '\0'; 
+    listfr[0] = '\0';
 
     for (int i = 0; i < user.friend_count; i++) {
         char temp[12];
         int friend_id = user.friends[i];
-        snprintf(temp, sizeof(temp), "%d:%s", friend_id, clients[friend_id].username); 
+        snprintf(temp, sizeof(temp), "%d:%s:%d", friend_id, clients[friend_id].username, clients[friend_id].is_online);
         strcat(listfr, temp);
         if (i < user.friend_count - 1) {
-            strcat(listfr, " "); 
+            strcat(listfr, " ");
         }
     }
-    return listfr; 
+    return listfr;
 }
 
 
 // Lấy danh sách yêu cầu kết bạn
-void get_friend_requests(Client *user, int request_list[], int *request_count) {
-    *request_count = user->request_count;
-    for (int i = 0; i < user->request_count; i++) {
-        request_list[i] = user->add_friend_requests[i];
+char* get_friend_requests(Client user) {
+    char* listreq = (char*)malloc(BUFFER_SIZE);
+    if (!listreq) {
+        perror("malloc failed");
+        return NULL;
     }
+    listreq[0] = '\0';
+
+    for (int i = 0; i < user.request_count; i++) {
+        char temp[25];
+        int friend_id = user.add_friend_requests[i];
+        snprintf(temp, sizeof(temp), "%d:%s:%d", friend_id, clients[friend_id].username, clients[friend_id].is_online);
+        strcat(listreq, temp);
+        if (i < user.request_count - 1) {
+            strcat(listreq, " ");
+        }
+    }
+    return listreq;
 }
 
 
 int remove_friend(Client* sender, Client* receiver){
     int friend_id = receiver->id;
     for (int i = 0; i < sender->friend_count; i++) {
-        if (sender->friends[i] == friend_id) { 
+        if (sender->friends[i] == friend_id) {
             for (int j = i; j < sender->friend_count - 1; j++) {
                 sender->friends[j] = sender->friends[j + 1];
             }
             sender->friend_count--;
             write_friend_list(sender);
 
-            break; 
+            break;
         }
     }
     friend_id = sender->id;
     for (int i = 0; i < receiver->friend_count; i++) {
-        if (receiver->friends[i] == friend_id) { 
+        if (receiver->friends[i] == friend_id) {
             for (int j = i; j < receiver->friend_count - 1; j++) {
                 receiver->friends[j] = receiver->friends[j + 1];
             }
@@ -184,7 +196,7 @@ int remove_friend(Client* sender, Client* receiver){
             return 1;
         }
     }
-    return 0; 
+    return 0;
 }
 
 void logout(Client *user){

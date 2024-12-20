@@ -24,7 +24,7 @@ int decline_friend_request(Client *user, int sender_id);
 int cancel_friend_request(Client *sender, Client *receiver);
 
 char* get_friends(Client user);
-void get_friend_requests(Client *user, int request_list[], int *request_count);
+char* get_friend_requests(Client user);
 
 int remove_friend(Client* sender, Client* receiver);
 void write_friend_list(Client *client);

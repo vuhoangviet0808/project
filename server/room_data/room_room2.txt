@@ -1,0 +1,12 @@
+JOIN cuong 1
+MESSAGE cuong 123124
+MESSAGE cuong 1234
+MESSAGE cuong 1234
+MESSAGE cuong hello xin chao 
+JOIN viet 2
+JOIN vinh 5
+MESSAGE cuong hi 
+LEAVE viet 2
+JOIN viet 2
+LEAVE cuong 1
+LEAVE viet 2

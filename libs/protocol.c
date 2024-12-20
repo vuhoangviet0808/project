@@ -1,9 +1,7 @@
 #include <stdio.h>
 #include <string.h>
+#include "common.h"
 
-void add_response_header(char *response, int response_header) {
-    char temp[1024];
-    snprintf(temp, sizeof(temp), "%d\n", response_header);
-    strncat(temp, response, sizeof(temp) - strlen(temp) - 1);
-    strncpy(response, temp, strlen(temp) + 1);
+void add_response_header(char *final_response, int response_header, const char *response_content, size_t response_content_size) {
+    snprintf(final_response, RESPONSE_SIZE, "%d\n%s", response_header, response_content);
 }

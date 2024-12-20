@@ -31,6 +31,7 @@
 #define RESPONSE_CHAT_OFFLINE   0x24 // Gửi tin nhắn ngoại tuyến thành công
 #define RESPONSE_RETRIEVE       0x25 // Lấy tin nhắn thành công
 #define RESPONSE_ADDFR          0x26 // Gửi yêu cầu kết bạn thành công
+#define FAIL_ADDFR              0x46
 #define RESPONSE_ACCEPT         0x27 // Chấp nhận yêu cầu kết bạn thành công
 #define RESPONSE_DECLINE        0x28 // Từ chối yêu cầu kết bạn thành công
 #define RESPONSE_LISTFR         0x29 // Liệt kê danh sách bạn bè thành công
@@ -46,6 +47,6 @@
 #define RESPONSE_LIST_ROOMS     0x33 // Liệt kê các phòng chat đã tham gia thành công
 #define RESPONSE_LOGOUT         0x34 // Đăng xuất thành công
 
-void add_response_header(char *response, int response_header);
+void add_response_header(char *final_response, int response_header, const char *response_content, size_t response_content_size);
 
 #endif

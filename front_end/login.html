@@ -14,9 +14,8 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <!-- <script src="./js/login.js">
 
-    </script> -->
+    </script>
     <script>
         document.addEventListener("DOMContentLoaded", () => {
 
@@ -36,16 +35,27 @@
                 };
 
                 ws.onmessage = (event) => {
-                    console.log("Received message:", event.data);
-                    const output = document.getElementById("output");
-                    output.innerText += "\nServer: " + event.data;
-                    if (true) {
-                        localStorage.setItem("user_id", event.data);
-                        window.location.href = "chat.html";
+                    const response = event.data.trim(); // Loại bỏ khoảng trắng thừa
+                    console.log(response);
+
+                    console.log("Received:", response); // Debug log phản hồi server
+
+                    const parts = response.split(" ");
+                    const userId = parts[0];
+                    const username = parts.slice(1).join(" "); // Ghép các phần còn lại thành username
+                    console.log(userId);
+                    console.log(username);
+                    // Kiểm tra định dạng hợp lệ
+                    if (!isNaN(userId) && username) {
+                        sessionStorage.setItem("user_id", userId);
+                        sessionStorage.setItem("user_name", username.trim());
+                        alert("Login successful!");
+                        window.location.href = "chat-private.html";
                     } else {
-                        alert(event.data);
+                        alert("Invalid response from server: " + response);
                     }
                 };
+
 
                 ws.onerror = (error) => {
                     console.error("WebSocket Error:", error);

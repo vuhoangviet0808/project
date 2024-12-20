@@ -1,0 +1,10 @@
+JOIN cuong 1
+ADD viet 2
+MESSAGE viet xin chao 
+MESSAGE cuong hellu 
+MESSAGE viet 222 
+MESSAGE cuong aloo 
+MESSAGE cuong chao nhe 
+REMOVE viet 2
+JOIN viet 2
+MESSAGE cuong xin chao 
