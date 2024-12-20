@@ -1,0 +1,6 @@
+JOIN cuong12 11
+JOIN dung12 10
+MESSAGE cuong12 xin chao 
+MESSAGE dung12 chao ban nhe 
+REMOVE dung12 10
+JOIN dung12 10

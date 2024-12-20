@@ -13,3 +13,5 @@ ADD vinh123 9
 REMOVE vinh123 9
 ADD vinh123 9
 MESSAGE dat123 hello 
+MESSAGE dat123 xin chao 
+MESSAGE dat123 chao nhe 
