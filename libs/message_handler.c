@@ -1,4 +1,6 @@
 #include "message_handler.h"
+#include "common.h"
+#include "utils.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -109,57 +111,80 @@ void store_message(int sender_id, int receiver_id, const char *message) {
 }
 
 void send_private_message(int sender_id, int receiver_id, const char *message) {
-    if (!message) {
-        fprintf(stderr, "Null pointer error in send_private_message\n");
+    printf("%d %d", sender_id, receiver_id);
+    if (!message)
+    {
+        fprintf(stderr, "No message to send\n");
+        const char *response = "No message to send";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID in send_private_message\n");
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     char message_buffer[BUFFER_SIZE];
-    snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
+    char final_response[BUFFER_SIZE];
+    snprintf(message_buffer, BUFFER_SIZE, "%s:%s", clients[sender_id].username, message);
 
     if (clients[receiver_id].is_online && clients[receiver_id].socket != -1) {
-        send(clients[receiver_id].socket, message_buffer, strlen(message_buffer), 0);
+        add_response_header(final_response, RESPONSE_CHAT, message_buffer, strlen(message_buffer));
+        send_websocket_message(clients[receiver_id].socket, final_response, strlen(message_buffer), 0);
+        log_message("User %s sent private message to %s", clients[sender_id].username, clients[receiver_id].username);
+        // Store the message
+        store_message(sender_id, receiver_id, message);
+        log_message("Stored private message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
     } else {
         char response[BUFFER_SIZE];
         snprintf(response, BUFFER_SIZE, "User %s is not online.", clients[receiver_id].username);
-        send(clients[sender_id].socket, response, strlen(response), 0);
+        printf("User %s is not online.\n", clients[receiver_id].username);
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
     }
-
-    // Store the message
-    store_message(sender_id, receiver_id, message);
 }
 
 void send_offline_message(int sender_id, int receiver_id, const char *message) {
     if (!message) {
-        fprintf(stderr, "Null pointer error in send_private_message\n");
+        fprintf(stderr, "No message to send\n");
+        const char *response = "No message to send";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
     if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
-        fprintf(stderr, "Invalid sender or receiver ID in send_private_message\n");
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
         return;
     }
 
+
     char message_buffer[BUFFER_SIZE];
     snprintf(message_buffer, BUFFER_SIZE, "%s: %s", clients[sender_id].username, message);
-
+    log_message("User %s sent offline message to %s", clients[sender_id].username, clients[receiver_id].username);
     // Store the message
     store_message(sender_id, receiver_id, message);
+    log_message("Stored offline message from %s to %s", clients[sender_id].username, clients[receiver_id].username);
 }
 
-void retrieve_message(int sender_id, int receiver_id) {
+void retrieve_message(int client_sock, int sender_id, int receiver_id) {
+    if (sender_id < 0 || sender_id >= MAX_CLIENTS || receiver_id < 0 || receiver_id >= MAX_CLIENTS) {
+        fprintf(stderr, "Invalid sender or receiver ID\n");
+        const char *response = "Invalid sender or receiver ID";
+        send_websocket_message(clients[sender_id].socket, response, strlen(response), 0);
+        return;
+    }
+
     char sender_conversation_file[BUFFER_SIZE];
     char conversation_id[CONVERSATION_ID_LENGTH + 1] = {0};
     MessageList *message_list = malloc(sizeof(MessageList));
     message_list->count = 0;
 
     char line[BUFFER_SIZE];
-    char *response = malloc(RESPONSE_SIZE);
+    char *response_content = malloc(RESPONSE_SIZE);
     size_t response_size = 0;
 
     snprintf(sender_conversation_file, BUFFER_SIZE, "user_data/%s/conversations/%s.txt",
@@ -167,13 +192,13 @@ void retrieve_message(int sender_id, int receiver_id) {
 
     FILE *file = fopen(sender_conversation_file, "r");
     if (file == NULL) {
-        free(response);
+        free(response_content);
         free(message_list);
         return;
     }
 
-    if (fgets(conversation_id, CONVERSATION_ID_LENGTH + 2, file)) { // +2 for newline and null terminator
-        conversation_id[strcspn(conversation_id, "\n")] = '\0'; // Remove newline
+    if (fgets(conversation_id, CONVERSATION_ID_LENGTH + 2, file)) {
+        conversation_id[strcspn(conversation_id, "\n")] = '\0';
     }
     fclose(file);
 
@@ -182,26 +207,24 @@ void retrieve_message(int sender_id, int receiver_id) {
 
     file = fopen(conversation_file, "r");
     if (file == NULL) {
-        free(response);
+        free(response_content);
         free(message_list);
         return;
     }
 
-    // Read and parse each line in the file
     while (fgets(line, sizeof(line), file) && message_list->count < MAX_MESSAGES) {
         Message *msg = &message_list->messages[message_list->count++];
         if (sscanf(line, "[%19[^]]] %[^:]: %[^\n]", msg->timestamp, msg->username, msg->message) == 3) {
-            // Successfully parsed timestamp, username, and message
+            // Valid line parsed
         } else {
             --message_list->count; // Revert count if line is invalid
         }
     }
     fclose(file);
 
-    // Build the response string
     for (int i = 0; i < message_list->count; i++) {
         Message *msg = &message_list->messages[i];
-        int written = snprintf(response + response_size, RESPONSE_SIZE - response_size,
+        int written = snprintf(response_content + response_size, RESPONSE_SIZE - response_size,
                                "[%s] %s: %s\n", msg->timestamp, msg->username, msg->message);
         if (written < 0 || written >= RESPONSE_SIZE - response_size) {
             break;
@@ -209,9 +232,21 @@ void retrieve_message(int sender_id, int receiver_id) {
         response_size += written;
     }
 
-    printf("Response: %s\n", response);
-    send(clients[sender_id].socket, response, response_size, 0);
+    char *final_response = malloc(RESPONSE_SIZE);
+    if (!final_response) {
+        free(response_content);
+        free(message_list);
+        perror("Failed to allocate memory for final response");
+        return;
+    }
 
-    free(response);
+    add_response_header(final_response, RESPONSE_RETRIEVE, response_content, response_size);
+
+    send_websocket_message(client_sock, final_response, strlen(final_response), 0);
+
+    printf("Final Response: %s\n", final_response);
+
+    free(response_content);
+    free(final_response);
     free(message_list);
 }

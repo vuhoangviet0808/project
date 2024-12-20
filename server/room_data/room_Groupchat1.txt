@@ -1,7 +1,0 @@
-JOIN cuong 2
-JOIN viet 0
-ADD  5
-REMOVE  5
-ADD hoang 6
-LEAVE viet 0
-JOIN viet 0

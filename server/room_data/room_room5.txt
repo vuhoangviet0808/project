@@ -1,0 +1,11 @@
+JOIN cuong 1
+ADD viet 2
+LEAVE viet 2
+JOIN viet 2
+MESSAGE cuong xin chao 
+ADD dung 7
+MESSAGE viet hellu 
+MESSAGE viet minh la viet 
+MESSAGE cuong xin chao 
+MESSAGE cuong xin chao 
+LEAVE viet 2

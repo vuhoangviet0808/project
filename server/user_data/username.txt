@@ -1,18 +1,9 @@
 cuong
 hoang
-user1
 viet
-vittt
-vu
-<<<<<<< HEAD
+dat
 hoang
-vietdz
-=======
-vuhoang
-
-vuviet
-vu123
-vu12
-vietvu
-VIET
->>>>>>> main
+vinh
+duy
+dung
+user1

@@ -11,7 +11,71 @@
     <link rel="stylesheet" href="./css/main.css">
     <link rel="stylesheet" href="./fonts/fontawesome-free-6.5.2-web/css/all.min.css" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
-    <script src="./js/signup.js"></script>
+    <!-- <script src="./js/signup.js"></script> -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const switchBtn = document.querySelector(".authen-form__switach-btn");
+            switchBtn.addEventListener("click", () => {
+                window.location.href = "login.html";
+            });
+
+            const ws = new WebSocket('ws://localhost:8080'); // Kết nối WebSocket
+
+            ws.onopen = () => {
+                document.getElementById('output').innerText = 'Connected to WebSocket server';
+            };
+
+            ws.onmessage = (event) => {
+                const output = document.getElementById('output');
+                const message = event.data;
+
+                if (message.includes("Account already exists")) {
+                    alert("Tài khoản đã tồn tại. Vui lòng chọn tên khác!");
+                } else if (message.includes("Registration failed")) {
+                    alert("Đăng ký thất bại. Vui lòng thử lại sau!");
+                } else {
+                    // Đăng ký thành công
+                    alert("Đăng ký thành công! Đang chuyển đến trang login...");
+                    sessionStorage.setItem("user_id", event.data);
+                    window.location.href = "login.html";
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+                alert("Có lỗi xảy ra khi kết nối với server.");
+            };
+
+            ws.onclose = () => {
+                document.getElementById('output').innerText += '\nConnection closed.';
+            };
+
+            function sendMessage() {
+                const username = document.getElementById("username").value;
+                const password = document.getElementById("password").value;
+                const confirmPassword = document.getElementById("confirm-password").value;
+
+                // Kiểm tra xác nhận mật khẩu
+                if (!username || !password || !confirmPassword) {
+                    alert("Vui lòng nhập đầy đủ thông tin!");
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    alert("Mật khẩu xác nhận không khớp!");
+                    return;
+                }
+
+                const message = `register ${username} ${password}`;
+                ws.send(message); // Gửi lệnh đăng ký đến server
+            }
+
+            document.querySelector(".btn-primary").addEventListener("click", (e) => {
+                e.preventDefault();
+                sendMessage();
+            });
+        });
+    </script>
 </head>
 
 <body>
@@ -21,6 +85,7 @@
                 <div class="header-logo">
                 </div>
                 <span>Đăng Ký</span>
+                <span id="output"></span>
             </div>
         </div>
     </header>
@@ -31,6 +96,7 @@
                     <div class="auth-form__header">
                         <h3 class="authen-form__heading">Đăng ký</h3>
                         <span class="authen-form__switach-btn">Đăng nhập</span>
+
                     </div>
                     <div class="auth-form__form">
                         <div class="auth-form__group">

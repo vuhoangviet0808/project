@@ -11,9 +11,13 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 #include <sys/stat.h>
+#include "protocol.h"
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
+#define RESPONSE_SIZE (BUFFER_SIZE * MAX_MESSAGES + 1)
+#define MAX_MESSAGE_LENGTH 512
+#define MAX_MESSAGES 1000
 #define BASE_DIR "user_data"
 #define ID_FILE "user_data/next_id.txt"
 #define U_FILE "user_data/username.txt"
@@ -29,6 +33,7 @@ typedef struct
     char password[BUFFER_SIZE];
     int id;
     int is_online;
+
 
     int friends[MAX_FRIENDS];
     int friend_count;

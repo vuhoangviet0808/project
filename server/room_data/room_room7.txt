@@ -1,0 +1,2 @@
+JOIN viet 2
+LEAVE viet 2

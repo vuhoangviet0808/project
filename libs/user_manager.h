@@ -1,6 +1,7 @@
 #ifndef USER_MANAGER_H
 #define USER_MANAGER_H
 
+#include <ctype.h>
 #include "common.h"
 
 int load_next_id();

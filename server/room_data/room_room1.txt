@@ -1,0 +1,29 @@
+JOIN cuong 1
+JOIN viet 2
+MESSAGE cuong hi
+MESSAGE cuong 1234
+MESSAGE cuong xin
+MESSAGE cuong halo
+MESSAGE viet xin chao minh la viet 
+MESSAGE cuong hom nay la ngay 19/12 
+MESSAGE cuong chao nhe 
+MESSAGE viet chao buoi toi 
+JOIN vinh 5
+MESSAGE vinh xin chao minh la vinh 
+MESSAGE cuong 1234 
+JOIN dung 7
+MESSAGE cuong 1234 
+MESSAGE cuong hello 
+MESSAGE cuong hellu 
+MESSAGE cuong alooo 
+MESSAGE viet aloo 
+MESSAGE viet chao nhe 
+MESSAGE cuong test thu 
+MESSAGE cuong 1234 
+MESSAGE cuong 123 
+MESSAGE viet 123 
+MESSAGE cuong hello 
+MESSAGE cuong chao buoi toi 
+MESSAGE cuong hellu 
+MESSAGE cuong aloo 
+MESSAGE cuong aloo 

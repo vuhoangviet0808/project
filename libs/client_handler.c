@@ -2,9 +2,66 @@
 #include "client_handler.h"
 #include "utils.h"
 #include "user_manager.h"
+#include "user.h"
 #include "message_handler.h"
 #include "common.h"
+#include <stdint.h>
 #include "room_manager.h"
+extern Client clients[MAX_CLIENTS];
+// Function to decode WebSocket frames
+int decode_websocket_message(char *buffer, char *out, size_t *out_len)
+{
+    uint8_t *p = (uint8_t *)buffer;
+    size_t payload_len;
+    size_t mask_offset = 0;
+    size_t i;
+
+    // First byte contains the FIN bit and opcode
+    uint8_t first_byte = p[0];
+    uint8_t opcode = first_byte & 0x0F; // Extract the opcode (lower 4 bits)
+
+    // Second byte contains the masking bit and payload length
+    uint8_t second_byte = p[1];
+    int mask = (second_byte & 0x80) >> 7; // Extract masking bit
+    payload_len = second_byte & 0x7F;     // Extract payload length
+
+    // Check for extended payload length (if >= 126)
+    if (payload_len == 126)
+    {
+        payload_len = (p[2] << 8) | p[3]; // 2 bytes for extended payload length
+        mask_offset = 4;                  // Move to the masking key
+    }
+    else if (payload_len == 127)
+    {
+        // For simplicity, we won't handle this case (8-byte length)
+        return -1; // Unsupported frame size
+    }
+    else
+    {
+        mask_offset = 2; // Move to the masking key
+    }
+
+    // Get the masking key if it's a masked frame
+    uint8_t masking_key[4] = {0};
+    if (mask)
+    {
+        for (i = 0; i < 4; i++)
+        {
+            masking_key[i] = p[mask_offset + i];
+        }
+    }
+
+    // Decode the payload
+    *out_len = payload_len;
+    for (i = 0; i < payload_len; i++)
+    {
+        out[i] = mask ? (p[mask_offset + 4 + i] ^ masking_key[i % 4]) : p[mask_offset + 4 + i];
+    }
+    out[payload_len] = '\0'; // Null-terminate the output
+
+    return opcode; // Return the opcode of the message
+}
+
 void init_clients()
 {
     for (int i = 0; i < MAX_CLIENTS; i++)
@@ -42,11 +99,12 @@ void remove_client(int id)
     pthread_mutex_unlock(&clients_mutex);
 }
 
-
 void *client_handler(void *socket_desc)
 {
     int client_sock = *(int *)socket_desc;
     char buffer[BUFFER_SIZE];
+    char decoded_message[BUFFER_SIZE];
+    size_t decoded_length;
     int user_id = -1;
     while (1)
     {
@@ -57,8 +115,20 @@ void *client_handler(void *socket_desc)
         if (read_size <= 0)
             break;
 
+        // decode
+        int opcode = decode_websocket_message(buffer, decoded_message, &decoded_length);
+        if (opcode < 0)
+        {
+            send_websocket_message(client_sock, "Failed to decode message.\n", strlen("Failed to decode message.\n"), 0);
+            continue;
+        }
+
+        ///
+
         char command[BUFFER_SIZE], payload[BUFFER_SIZE];
-        sscanf(buffer, "%s %[^\n]", command, payload);
+
+        sscanf(decoded_message, "%s %[^\n]", command, payload);
+        // sscanf(buffer, "%s %[^\n]", command, payload);
 
         printf("Debug: command %s, payload %s\n", command, payload);
 
@@ -71,7 +141,7 @@ void *client_handler(void *socket_desc)
 
             if (access(user_dir, F_OK) != -1)
             {
-                send(client_sock, "Account already exists.\n", strlen("Account already exists.\n"), 0);
+                send_websocket_message(client_sock, "Account already exists.\n", strlen("Account already exists.\n"), 0);
             }
             else
             {
@@ -79,7 +149,7 @@ void *client_handler(void *socket_desc)
 
                 if (new_id != -1)
                 {
-                    // int id = add_client(client_sock, new_id, username, password);
+                    int id = add_client(client_sock, new_id, username, password);
                     // printf("%d\n", id);
                     user_id = new_id;
                     strncpy(clients[user_id].username, username, BUFFER_SIZE);
@@ -89,12 +159,12 @@ void *client_handler(void *socket_desc)
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
                     snprintf(response, BUFFER_SIZE, "%d", new_id);
-                    send(client_sock, response, strlen(response), 0);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
                     printf("%d %d %d %s %s\n", user_id, clients[user_id].id, clients[user_id].is_online, clients[user_id].username, clients[user_id].password);
                 }
                 else
                 {
-                    send(client_sock, "Registration failed.\n", strlen("Registration failed.\n"), 0);
+                    send_websocket_message(client_sock, "Registration failed.\n", strlen("Registration failed.\n"), 0);
                 }
             }
         }
@@ -103,11 +173,12 @@ void *client_handler(void *socket_desc)
             char info_file[BUFFER_SIZE];
             char username[BUFFER_SIZE], password[BUFFER_SIZE];
             sscanf(payload, "%s %s", username, password);
+
             snprintf(info_file, sizeof(info_file), "%s/%s/info.txt", BASE_DIR, username);
 
             if (access(info_file, F_OK) == -1)
             {
-                send(client_sock, "Account does not exist.\n", strlen("Account does not exist.\n"), 0);
+                send_websocket_message(client_sock, "Account does not exist.\n", strlen("Account does not exist.\n"), 0);
             }
             else
             {
@@ -120,50 +191,25 @@ void *client_handler(void *socket_desc)
                 if (strcmp(stored_password, password) == 0)
                 {
                     user_id = stored_id;
-                    // add_client(client_sock, user_id, username, password); // Thêm client vào mảng
-
+                    strncpy(clients[user_id].username, username, BUFFER_SIZE);
                     clients[user_id].is_online = 1;
                     clients[user_id].socket = client_sock;
                     char response[BUFFER_SIZE];
-                    snprintf(response, BUFFER_SIZE, "%d", user_id);
-                    send(client_sock, response, strlen(response), 0);
+                    snprintf(response, BUFFER_SIZE, "%d %s", user_id, username);
+                    printf("sock_test : %d %d", clients[user_id].socket, clients[user_id].is_online);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
                 }
                 else
                 {
-                    send(client_sock, "Incorrect password.\n", strlen("Incorrect password.\n"), 0);
+                    send_websocket_message(client_sock, "Incorrect password.\n", strlen("Incorrect password.\n"), 0);
                 }
             }
         }
         else if (strcmp(command, "chat") == 0)
         {
-            char recver[BUFFER_SIZE];
-            char message[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver, message);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (clients[i].is_online && strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                send_private_message(sender_id, receiver_id, message);
-                log_message("User %s sent message to %s", clients[sender_id].username, recver);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s is not online or does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
-            }
+            char receiver_id[BUFFER_SIZE], sender_id[BUFFER_SIZE], message[BUFFER_SIZE];
+            sscanf(payload, "%s %s %[^\n]", sender_id, receiver_id, message);
+            send_private_message(atoi(sender_id), atoi(receiver_id), message);
         }
         else if (strcmp(command, "addfr") == 0)
         {
@@ -182,22 +228,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request sent successfully.\n", strlen("Friend request sent successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request sent successfully.\n", strlen("Friend request sent successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Friend request failed. Maybe already sent or full.\n", strlen("Friend request failed. Maybe already sent or full.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request failed. Maybe already sent or full.\n", strlen("Friend request failed. Maybe already sent or full.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "accept") == 0)
@@ -216,22 +262,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request accepted successfully.\n", strlen("Friend request accepted successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request accepted successfully.\n", strlen("Friend request accepted successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Failed to accept friend request. Maybe list full.\n", strlen("Failed to accept friend request. Maybe list full.\n"), 0);
+                        send_websocket_message(client_sock, "Failed to accept friend request. Maybe list full.\n", strlen("Failed to accept friend request. Maybe list full.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "decline") == 0)
@@ -248,26 +294,33 @@ void *client_handler(void *socket_desc)
 
                 if (result == 1)
                 {
-                    send(client_sock, "Friend request declined successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                    send_websocket_message(client_sock, "Friend request declined successfully.\n", strlen("Friend request declined successfully.\n"), 0);
                 }
                 else
                 {
-                    send(client_sock, "Failed to decline friend request. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                    send_websocket_message(client_sock, "Failed to decline friend request. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "listfr") == 0)
         {
+            printf("listfr\n");
+            char userID[BUFFER_SIZE];
+            sscanf(payload, "%s", userID);
+            user_id = atoi(userID);
             pthread_mutex_lock(&clients_mutex);
 
             char *friends_list = get_friends(clients[user_id]);
+            char response[BUFFER_SIZE];
+            snprintf(response, BUFFER_SIZE, "%d\n%s", RESPONSE_LISTFR,friends_list);
+            printf("friends_list: %s\n", friends_list);
             pthread_mutex_unlock(&clients_mutex);
 
-            send(client_sock, friends_list, strlen(friends_list), 0);
+            send_websocket_message(client_sock, response, strlen(response), 0);
         }
         else if (strcmp(command, "cancel") == 0)
         {
@@ -285,22 +338,22 @@ void *client_handler(void *socket_desc)
 
                     if (result == 1)
                     {
-                        send(client_sock, "Friend request canceled successfully.\n", strlen("Friend request canceled successfully.\n"), 0);
+                        send_websocket_message(client_sock, "Friend request canceled successfully.\n", strlen("Friend request canceled successfully.\n"), 0);
                     }
                     else
                     {
-                        send(client_sock, "Failed to cancel friend request. Request not found.\n", strlen("Failed to cancel friend request. Request not found.\n"), 0);
+                        send_websocket_message(client_sock, "Failed to cancel friend request. Request not found.\n", strlen("Failed to cancel friend request. Request not found.\n"), 0);
                     }
                 }
                 else
                 {
                     pthread_mutex_unlock(&clients_mutex);
-                    send(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
+                    send_websocket_message(client_sock, "Invalid user ID or user is offline.\n", strlen("Invalid user ID or user is offline.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "listreq") == 0)
@@ -326,11 +379,11 @@ void *client_handler(void *socket_desc)
                         strcat(response, ", ");
                 }
                 strcat(response, "\n");
-                send(client_sock, response, strlen(response), 0);
+                send_websocket_message(client_sock, response, strlen(response), 0);
             }
             else
             {
-                send(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
+                send_websocket_message(client_sock, "No friend requests received.\n", strlen("No friend requests received.\n"), 0);
             }
         }
         else if (strcmp(command, "remove") == 0)
@@ -344,211 +397,370 @@ void *client_handler(void *socket_desc)
 
                 int result = remove_friend(&clients[user_id], &clients[sender_id]);
                 pthread_mutex_unlock(&clients_mutex);
-
                 if (result == 1)
                 {
-                    send(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
+                    send_websocket_message(client_sock, "Friend remove successfully.\n", strlen("Friend request declined successfully.\n"), 0);
                 }
                 else
                 {
-                    send(client_sock, "Failed to remove friend. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
+                    send_websocket_message(client_sock, "Failed to remove friend. Request not found.\n", strlen("Failed to decline friend request. Request not found.\n"), 0);
                 }
             }
             else
             {
-                send(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
+                send_websocket_message(client_sock, "Invalid user ID format.\n", strlen("Invalid user ID format.\n"), 0);
             }
         }
         else if (strcmp(command, "chat_offline") == 0)
         {
-            char recver[BUFFER_SIZE];
+            char receiver_id[BUFFER_SIZE];
             char message[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver, message);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                send_offline_message(sender_id, receiver_id, message);
-                log_message("User %s sent offline message to %s", clients[sender_id].username, recver);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
-            }
+            int sender_id = user_id;
+            sscanf(payload, "%s %[^\n]", receiver_id, message);
+            send_offline_message(sender_id, atoi(receiver_id), message);
         }
         else if (strcmp(command, "retrieve") == 0)
         {
-            char recver[BUFFER_SIZE];
-            int sender_id = user_id, receiver_id = -1;
-
-            sscanf(payload, "%s %[^\n]", recver);
-
-            pthread_mutex_lock(&clients_mutex);
-            for (int i = 0; i < MAX_CLIENTS; i++)
-            {
-                if (strcmp(clients[i].username, recver) == 0)
-                {
-                    receiver_id = i;
-                    break;
-                }
-            }
-            pthread_mutex_unlock(&clients_mutex);
-
-            if (receiver_id != -1)
-            {
-                retrieve_message(sender_id, receiver_id);
-            }
-            else
-            {
-                char error_response[BUFFER_SIZE];
-                snprintf(error_response, BUFFER_SIZE, "User %s does not exist.", recver);
-                send(client_sock, error_response, strlen(error_response), 0);
-            }
+            char receiver_id[BUFFER_SIZE];
+            char sender_id[BUFFER_SIZE];
+            sscanf(payload, "%s %s", sender_id, receiver_id);
+            // printf("sender_id: %s\n", sender_id);
+            // printf("receiver_id: %s\n", receiver_id);
+            retrieve_message(client_sock, atoi(sender_id), atoi(receiver_id));
         }
         else if (strcmp(command, "create_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = create_room(username, user_id);
+            char room_name[BUFFER_SIZE];
+            int creator_id;
+            sscanf(payload, "%s %d", room_name, &creator_id);
+
+            // Tạo room
+            int room_id = create_room(room_name, creator_id);
             if (room_id != -1)
             {
-                char response[BUFFER_SIZE];
-                snprintf(response, BUFFER_SIZE, "Room created with ID %d\n", room_id);
-                send(client_sock, response, strlen(response), 0);
+                // Thêm người tạo vào phòng (join_room)
+                if (join_room(room_id, creator_id))
+                {
+                    char response[BUFFER_SIZE];
+                    snprintf(response, sizeof(response), "Room created and joined successfully with ID: %d", room_id);
+                    send_websocket_message(client_sock, response, strlen(response), 0);
+                }
+                else
+                {
+                    send_websocket_message(client_sock, "Failed to join room after creation.",
+                                           strlen("Failed to join room after creation."), 0);
+                }
             }
             else
             {
-                send(client_sock, "Failed to create room 123.\n", strlen("Failed to create room 123.\n"), 0);
+                send_websocket_message(client_sock, "Failed to create room.", strlen("Failed to create room."), 0);
             }
         }
         else if (strcmp(command, "join_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = atoi(username); // Tìm room_id từ tên
-            if (room_id == -1)
+            int room_id, user_id;
+            sscanf(payload, "%d %d", &room_id, &user_id);
+
+            if (join_room(room_id, user_id))
             {
-                send(client_sock, "Room does not exist.\n", strlen("Room does not exist.\n"), 0);
-            }
-            else if (join_room(room_id, user_id))
-            {
-                send(client_sock, "Joined room successfully.\n", strlen("Joined room successfully.\n"), 0);
+                char response[BUFFER_SIZE];
+                snprintf(response, sizeof(response), "Joined room successfully with ID: %d", room_id);
+                send_websocket_message(client_sock, response, strlen(response), 0);
             }
             else
             {
-                send(client_sock, "Failed to join room.\n", strlen("Failed to join room.\n"), 0);
+                send_websocket_message(client_sock, "Failed to join room. Room does not exist or you are already a member.",
+                                       strlen("Failed to join room. Room does not exist or you are already a member."), 0);
             }
         }
-        else if (strcmp(command, "room_message") == 0)
-        {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id;
-            char message[BUFFER_SIZE];
+        // else if (strcmp(command, "room_message") == 0)
+        // {
+        //     char username[BUFFER_SIZE], password[BUFFER_SIZE];
+        //     sscanf(payload, "%s %s", username, password);
+        //     int room_id;
+        //     char message[BUFFER_SIZE];
 
-            // Phân tích cú pháp để lấy room_id và phần còn lại là tin nhắn
-            char *token = strtok(buffer + strlen(command) + 1, " ");
+        //     // Phân tích cú pháp để lấy room_id và phần còn lại là tin nhắn
+        //     char *token = strtok(buffer + strlen(command) + 1, " ");
+        //     if (token)
+        //     {
+        //         room_id = atoi(token);
+        //         char *message_start = buffer + strlen(command) + strlen(token) + 2;
+        //         strncpy(message, message_start, BUFFER_SIZE - 1);
+        //         message[BUFFER_SIZE - 1] = '\0';
+
+        //         if (room_message(room_id, user_id, message))
+        //         {
+        //             send(client_sock, "Message sent to room.\n", strlen("Message sent to room.\n"), 0);
+        //         }
+        //         else
+        //         {
+        //             send(client_sock, "Failed to send message to room.\n", strlen("Failed to send message to room.\n"), 0);
+        //         }
+        //     }
+        //     else
+        //     {
+        //         send(client_sock, "Invalid room_message format.\n", strlen("Invalid room_message format.\n"), 0);
+        //     }
+        // }
+        if (strcmp(command, "send_room_message") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            char message[BUFFER_SIZE];
+            int user_id;
+
+            // Tách room_name và user_id
+            char *token = strtok(payload, " "); // Lấy room_name
             if (token)
             {
-                room_id = atoi(token);
-                char *message_start = buffer + strlen(command) + strlen(token) + 2;
-                strncpy(message, message_start, BUFFER_SIZE - 1);
-                message[BUFFER_SIZE - 1] = '\0';
+                strncpy(room_name, token, BUFFER_SIZE);
+                room_name[BUFFER_SIZE - 1] = '\0'; // Đảm bảo kết thúc chuỗi
 
-                if (room_message(room_id, user_id, message))
+                token = strtok(NULL, " "); // Lấy user_id
+                if (token)
                 {
-                    send(client_sock, "Message sent to room.\n", strlen("Message sent to room.\n"), 0);
+                    user_id = atoi(token);
+
+                    // Phần còn lại của payload là message
+                    char *message_start = payload + strlen(room_name) + 1 + strlen(token) + 1;
+                    strncpy(message, message_start, BUFFER_SIZE);
+                    message[BUFFER_SIZE - 1] = '\0'; // Đảm bảo kết thúc chuỗi
+
+                    // Debug để kiểm tra dữ liệu
+                    printf("Debug: Room Name: %s, User ID: %d, Message: %s\n", room_name, user_id, message);
+
+                    // Tiếp tục xử lý gửi tin nhắn
+                    pthread_mutex_lock(&rooms_mutex);
+                    int room_id = -1;
+
+                    for (int i = 0; i < MAX_ROOMS; i++)
+                    {
+                        if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                        {
+                            room_id = i;
+                            break;
+                        }
+                    }
+                    pthread_mutex_unlock(&rooms_mutex);
+
+                    if (room_id != -1)
+                    {
+                        if (room_message(room_id, user_id, message, client_sock))
+                        {
+                            send_websocket_message(client_sock, "room_message_success", strlen("room_message_success"), 0);
+                            printf("Message sent successfully.\n");
+                        }
+                        else
+                        {
+                            send_websocket_message(client_sock, "error_sending_message", strlen("error_sending_message"), 0);
+                        }
+                    }
+                    else
+                    {
+                        send_websocket_message(client_sock, "room_not_found", strlen("room_not_found"), 0);
+                    }
                 }
-                else
-                {
-                    send(client_sock, "Failed to send message to room.\n", strlen("Failed to send message to room.\n"), 0);
-                }
-            }
-            else
-            {
-                send(client_sock, "Invalid room_message format.\n", strlen("Invalid room_message format.\n"), 0);
             }
         }
+
         else if (strcmp(command, "add_to_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id, target_user_id;
-            sscanf(buffer + strlen(command) + 1, "%d %d", &room_id, &target_user_id);
+            char room_name[BUFFER_SIZE];
+            int target_user_id;
 
-            if (add_user_to_room(room_id, target_user_id))
+            sscanf(payload, "%s %d", room_name, &target_user_id);
+
+            pthread_mutex_lock(&rooms_mutex);
+            int room_id = -1;
+
+            for (int i = 0; i < MAX_ROOMS; i++)
             {
-                send(client_sock, "User added to room successfully.\n", strlen("User added to room successfully.\n"), 0);
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    room_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
 
-                // Gửi thông báo đến người dùng được thêm
-                // if (clients[target_user_id].is_online)
-                // {
-                char notify_message[BUFFER_SIZE];
-                snprintf(notify_message, sizeof(notify_message),
-                         "You have been added to room %d by %s.\n",
-                         room_id, clients[user_id].username);
-                send(clients[target_user_id].socket, notify_message, strlen(notify_message), 0);
-                // }
+            if (room_id != -1 && add_user_to_room(room_id, target_user_id))
+            {
+                send_websocket_message(client_sock, "user_added_to_room_success", strlen("user_added_to_room_success"), 0);
             }
             else
             {
-                send(client_sock, "Failed to add user to room.\n", strlen("Failed to add user to room.\n"), 0);
+                send_websocket_message(client_sock, "user_add_failed", strlen("user_add_failed"), 0);
             }
         }
+
         else if (strcmp(command, "leave_room") == 0)
         {
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = atoi(username); // Room ID được truyền trong trường username
-            if (leave_room(room_id, user_id))
+            char room_name[BUFFER_SIZE];
+            int user_id;
+
+            sscanf(payload, "%s %d", room_name, &user_id);
+
+            pthread_mutex_lock(&rooms_mutex);
+            int room_id = -1;
+
+            for (int i = 0; i < MAX_ROOMS; i++)
             {
-                send(client_sock, "You have leave the room successfully.\n", strlen("You have leave the room successfully.\n"), 0);
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    room_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
+
+            if (room_id != -1 && leave_room(room_id, user_id))
+            {
+                send_websocket_message(client_sock, "left_room_success", strlen("left_room_success"), 0);
             }
             else
             {
-                send(client_sock, "Failed to leave the room.\n", strlen("Failed to leave the room.\n"), 0);
+                send_websocket_message(client_sock, "left_room_failed", strlen("left_room_failed"), 0);
             }
         }
+        // else if (strcmp(command, "remove_user") == 0)
+        // {
+
+        //     char username[BUFFER_SIZE], password[BUFFER_SIZE];
+        //     sscanf(payload, "%s %s", username, password);
+        //     int room_id = atoi(username);           // Room ID truyền ở phần username
+        //     int user_id_to_remove = atoi(password); // User ID cần xóa truyền ở phần password
+
+        //     if (remove_user_from_room(room_id, user_id, user_id_to_remove))
+        //     {
+        //         send(client_sock, "User removed from room successfully.\n", strlen("User removed from room successfully.\n"), 0);
+        //     }
+        //     else
+        //     {
+        //         send(client_sock, "Failed to remove user from room.\n", strlen("Failed to remove user from room.\n"), 0);
+        //     }
+        // }
         else if (strcmp(command, "remove_user") == 0)
         {
+            char room_name[BUFFER_SIZE];
+            int remover_id;
+            int user_id_to_remove;
 
-            char username[BUFFER_SIZE], password[BUFFER_SIZE];
-            sscanf(payload, "%s %s", username, password);
-            int room_id = atoi(username);           // Room ID truyền ở phần username
-            int user_id_to_remove = atoi(password); // User ID cần xóa truyền ở phần password
+            // Lấy tên phòng, ID người thực hiện, và ID người cần xoá
+            sscanf(payload, "%s %d %d", room_name, &remover_id, &user_id_to_remove);
+            // printf("room_id %d", room_name);
+            // printf("remover_id %d", remover_id);
+            // printf("user_id_to_remove %d", user_id_to_remove);
+            pthread_mutex_lock(&rooms_mutex);
+            int room_id = -1;
 
-            if (remove_user_from_room(room_id, user_id, user_id_to_remove))
+            // Tìm phòng theo tên
+            for (int i = 0; i < MAX_ROOMS; i++)
             {
-                send(client_sock, "User removed from room successfully.\n", strlen("User removed from room successfully.\n"), 0);
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    room_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
+
+            // Xử lý xoá người dùng khỏi phòng
+            if (remove_user_from_room(room_id, remover_id, user_id_to_remove))
+            {
+                send_websocket_message(client_sock, "user_removed_from_room_success", strlen("user_removed_from_room_success"), 0);
             }
             else
             {
-                send(client_sock, "Failed to remove user from room.\n", strlen("Failed to remove user from room.\n"), 0);
+                send_websocket_message(client_sock, "user_remove_failed", strlen("user_remove_failed"), 0);
+            }
+        }
+
+        else if (strcmp(command, "list_rooms") == 0)
+        {
+            int requested_user_id;
+            sscanf(payload, "%d", &requested_user_id); // Lấy user_id từ payload
+
+            char user_rooms[BUFFER_SIZE] = "";
+            get_user_rooms(requested_user_id, user_rooms);
+
+            if (strlen(user_rooms) > 0)
+            {
+                char response[BUFFER_SIZE];
+                send_websocket_message(client_sock, user_rooms, strlen(user_rooms), 0);
+            }
+            else
+            {
+                send_websocket_message(client_sock, "You have not joined any rooms.\n", strlen("You have not joined any rooms.\n"), 0);
+            }
+        }
+        else if (strcmp(command, "load_room_messages") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            int user_id;
+
+            sscanf(payload, "%s %d", room_name, &user_id);
+
+            char room_file[BUFFER_SIZE];
+            snprintf(room_file, sizeof(room_file), "../server/room_data/room_%s.txt", room_name);
+
+            FILE *file = fopen(room_file, "r");
+            if (file)
+            {
+                char line[BUFFER_SIZE];
+                char all_messages[BUFFER_SIZE * 10] = ""; // Chứa toàn bộ tin nhắn
+
+                while (fgets(line, sizeof(line), file))
+                {
+                    strcat(all_messages, line);
+                }
+                fclose(file);
+
+                char response[BUFFER_SIZE * 10];
+                snprintf(response, sizeof(response), "room_messages %s", all_messages);
+                send_websocket_message(client_sock, response, strlen(response), 0);
+            }
+            else
+            {
+                send_websocket_message(client_sock, "room_messages No messages found.", strlen("room_messages No messages found."), 0);
+            }
+        }
+        else if (strcmp(command, "view_members") == 0)
+        {
+            char room_name[BUFFER_SIZE];
+            sscanf(payload, "%s", room_name);
+
+            pthread_mutex_lock(&rooms_mutex);
+            int room_id = -1;
+            for (int i = 0; i < MAX_ROOMS; i++)
+            {
+                if (rooms[i].id != -1 && strcmp(rooms[i].name, room_name) == 0)
+                {
+                    room_id = i;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&rooms_mutex);
+
+            if (room_id != -1)
+            {
+                char members_list[BUFFER_SIZE * 10];
+                get_room_members(room_id, members_list);
+                send_websocket_message(client_sock, members_list, strlen(members_list), 0);
+            }
+            else
+            {
+                send_websocket_message(client_sock, "members_list Room not found or invalid room ID.", strlen("members_list Room not found or invalid room ID."), 0);
             }
         }
 
         else
         {
-            send(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);
+            send_websocket_message(client_sock, "Invalid command.\n", strlen("Invalid command.\n"), 0);
         }
     }
 
     log_message("Client disconnected: ID %d", user_id);
-    remove_client(user_id);
+    // remove_client(user_id);
     close(client_sock);
     free(socket_desc);
     return NULL;
