@@ -1,0 +1,2 @@
+JOIN thuan 12
+JOIN long 13

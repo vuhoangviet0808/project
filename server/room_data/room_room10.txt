@@ -1,0 +1,13 @@
+JOIN cuong123 8
+JOIN viet123 9
+MESSAGE cuong123 xin chao 
+MESSAGE viet123 hello 
+JOIN hoang123 10
+MESSAGE hoang123 xin chao 
+MESSAGE cuong123 hello 
+LEAVE cuong123 8
+JOIN cuong123 8
+REMOVE hoang123 10
+MESSAGE hoang123 hellu 
+JOIN hoang123 10
+JOIN cuong123 11

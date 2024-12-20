@@ -1,0 +1,15 @@
+JOIN dat123 8
+JOIN vinh123 9
+MESSAGE dat123 hello 
+MESSAGE vinh123 xin chao 
+REMOVE vinh123 9
+MESSAGE vinh123 xin chao 
+MESSAGE dat123 xin chao 
+ADD vinh123 9
+MESSAGE vinh123 chao nhe 
+MESSAGE dat123 chao nhe 
+REMOVE vinh123 9
+ADD vinh123 9
+REMOVE vinh123 9
+ADD vinh123 9
+MESSAGE dat123 hello 
