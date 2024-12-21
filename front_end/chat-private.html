@@ -160,7 +160,7 @@
                 });
               }
             });
-          } else if (response.startsWith(0x2B)) { // 0x24 là mã định danh cho danh sách lời mời kết bạn
+          } else if (response.startsWith(0x2B)) { 
             const requests = response
               .slice(2) 
               .split("\n")
@@ -175,7 +175,7 @@
                 const requestElement = document.createElement("div");
                 requestElement.classList.add("friend-request");
                 requestElement.innerHTML = `
-                  <span>${userId}:${username} sent you a friend request</span>
+                  <span> ${userId}:${username} sent you a friend request</span>
                   <div>
                     <button class="accept-btn">Accept</button>
                     <button class="reject-btn">Reject</button>
@@ -251,10 +251,10 @@
         switchViewBtn.addEventListener("click", () => {
           window.location.href = "chat-room.html";
         });
+
         addFriendBtn.addEventListener("click", () => {
           const friendId = addFriendInput.value.trim(); 
-      
-          if (isNaN(friendId)) {
+          if (!friendId || isNaN(friendId)) {
             alert("Please enter a valid numeric User ID.");
           } else {
       
@@ -264,8 +264,8 @@
             alert("You must be logged in to send friend requests.");
 
           } else{
-      
-          // Gửi yêu cầu qua WebSocket
+            console.log(`Sending addfr request: addfr ${friendId}`);
+
           socket.send(`addfr ${friendId}`);
       
           // Hiển thị trạng thái gửi yêu cầu (tạm thời)
@@ -308,6 +308,7 @@
           </div>
           <div id="add-friend-status"></div>
         </div>
+        <button id="switch-to-group-view">Switch To Group View</button>
     
         <!-- Quản lý lời mời kết bạn -->
         <div class="friend-requests">

@@ -160,7 +160,7 @@ char* get_friend_requests(Client user) {
     listreq[0] = '\0';
 
     for (int i = 0; i < user.request_count; i++) {
-        char temp[25];
+        char temp[12];
         int friend_id = user.add_friend_requests[i];
         snprintf(temp, sizeof(temp), "%d:%s:%d", friend_id, clients[friend_id].username, clients[friend_id].is_online);
         strcat(listreq, temp);
